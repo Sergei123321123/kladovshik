@@ -1,0 +1,14 @@
+{
+  "name": "kladovshik-bot",
+  "version": "1.0.0",
+  "description": "Telegram Bot for Kladovshik PRO license key generation",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "test": "node keygen.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-telegram-bot-api": "^0.66.0"
+  }
+}

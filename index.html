@@ -1,0 +1,2495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Кладовщик">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Warehouse Intake Counter</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='32,3 61,18 32,33 3,18' fill='%234caf50'/%3E%3Cpolygon points='3,18 32,33 32,61 3,46' fill='%232e7d32'/%3E%3Cpolygon points='32,33 61,18 61,46 32,61' fill='%231b5e20'/%3E%3Cpath d='M7 16 C7 14.5 8 13.5 9.5 13.5 L40 13.5 C41.5 13.5 42.5 14.5 43 16 L44 20 L52 21 C54 21.5 55.5 23 56.5 25 L59 30 C59.7 31.5 60 33 60 35 L60 41 C60 42.5 58.5 43.5 57 43.5 L55 43.5 C55 40 52 37.5 48 37.5 C44 37.5 41 40 41 43.5 L24 43.5 C24 40 21 37.5 17 37.5 C13 37.5 10 40 10 43.5 L8.5 43.5 C7 43.5 7 42.5 7 41 Z' fill='%23ffffff'/%3E%3Cpath d='M44 22 L50.5 23 C52 23.5 53 24.5 53.8 26 L55.5 30 L44 30 Z' fill='%23263238'/%3E%3Ccircle cx='17' cy='43.5' r='5.5' fill='%23212121'/%3E%3Ccircle cx='17' cy='43.5' r='2.2' fill='%23eceff1'/%3E%3Ccircle cx='48' cy='43.5' r='5.5' fill='%23212121'/%3E%3Ccircle cx='48' cy='43.5' r='2.2' fill='%23eceff1'/%3E%3C/svg%3E">
+  <script src="./xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg-page: #121212;
+      --bg-card: #1e1e1e;
+      --bg-footer: #1a1a1a;
+      --text-primary: #f0f0f0;
+      --border-color: #2c2c2c;
+      --border-footer: #333333;
+      --min-touch-size: 48px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button, input, select, .touch-element {
+      min-height: var(--min-touch-size);
+      font-family: inherit;
+      font-size: 16px;
+    }
+
+    #appHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2d2d2d;
+    }
+
+    .header-input {
+      flex: 1;
+      min-height: 48px;
+      background: #262626;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 8px;
+      font-size: 16px;
+      padding: 0 12px;
+      outline: none;
+    }
+
+    .header-input:focus {
+      border-color: #1976d2;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      background: #2d2616;
+      color: #ffa726;
+      border: 1px solid #ff9800;
+      white-space: nowrap;
+    }
+
+    .btn-clear {
+      min-height: 48px;
+      padding: 0 12px;
+      background: #37474f;
+      color: #eceff1;
+      border: 1px solid #546e7a;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn-clear:active {
+      background: #263238;
+      opacity: 0.9;
+    }
+
+    .btn-export {
+      min-height: 48px;
+      padding: 0 14px;
+      background: #2e7d32;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 0.15s ease;
+    }
+
+    .btn-export:active {
+      background: #1b5e20;
+    }
+
+    #productsBar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 12px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #variantsBar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 6px 12px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #productsBar::-webkit-scrollbar, #variantsBar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .btn-add-variant {
+      min-height: 48px;
+      padding: 0 14px;
+      background: transparent;
+      color: #888;
+      border: 1px dashed #555;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      white-space: nowrap;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-add-variant:active {
+      background: rgba(255, 255, 255, 0.05);
+      color: #aaa;
+    }
+
+    .btn-add-prod {
+      min-height: 48px;
+      padding: 0 16px;
+      background: #262626;
+      color: #888;
+      border: 1px dashed #444;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      white-space: nowrap;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-add-prod:active {
+      background: #333333;
+      color: #aaaaaa;
+    }
+
+    #counterSection {
+      padding: 12px;
+      margin-bottom: 125px;
+    }
+
+    .names-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .name-input {
+      min-height: 48px;
+      background: #262626;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 8px;
+      font-size: 15px;
+      padding: 0 12px;
+      outline: none;
+      box-sizing: border-box;
+      width: 100%;
+      transition: border-color 0.2s ease;
+    }
+
+    .name-input:focus {
+      border-color: #1976d2;
+    }
+
+    .name-input::placeholder {
+      color: #777;
+    }
+
+    .quants-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+      background: #1e1e1e;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #2d2d2d;
+    }
+
+    .quant-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .quant-label {
+      font-size: 12px;
+      color: #888;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .quant-input {
+      min-height: 48px;
+      background: #262626;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+
+    .quant-input:focus {
+      border-color: #1976d2;
+    }
+
+    .quant-input::-webkit-outer-spin-button,
+    .quant-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    /* Quick Counter Grid & Buttons */
+    .counter-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .counter-group {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .btn-counter {
+      flex: 1;
+      min-height: 58px;
+      font-size: 17px;
+      font-weight: 700;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.1s ease, opacity 0.1s ease;
+    }
+
+    .btn-counter:active {
+      transform: scale(0.98);
+      opacity: 0.9;
+    }
+
+    .btn-pallet {
+      background: #2e7d32;
+      color: #ffffff;
+    }
+
+    .btn-box {
+      background: #1565c0;
+      color: #ffffff;
+    }
+
+    .btn-unit {
+      background: #37474f;
+      color: #eceff1;
+      border: 1px solid #546e7a;
+    }
+
+    .btn-decrement {
+      min-height: 58px;
+      width: 48px;
+      background: #262626;
+      color: #e57373;
+      border: 1px solid #444;
+      border-radius: 8px;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      transition: background-color 0.1s ease;
+    }
+
+    .btn-decrement:active {
+      background: #333333;
+    }
+
+    /* Custom Pallets & Modal Styles */
+    .btn-custom-pallet {
+      min-height: 52px;
+      background: #e65100;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      width: 100%;
+      margin-top: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      transition: background-color 0.15s ease;
+    }
+
+    .btn-custom-pallet:active {
+      background: #bf360c;
+    }
+
+    .custom-pallets-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .custom-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #2e2417;
+      border: 1px solid #ff9800;
+      color: #ffb74d;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      user-select: none;
+    }
+
+    .custom-chip-del {
+      cursor: pointer;
+      color: #ff5252;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .custom-chip-del:hover {
+      background: rgba(255, 82, 82, 0.2);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 16px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 360px;
+      padding: 20px;
+      box-sizing: border-box;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #fff;
+      text-align: center;
+    }
+
+    .modal-input {
+      width: 100%;
+      min-height: 48px;
+      background: #2a2a2a;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    .modal-input:focus {
+      border-color: #e65100;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-modal-submit {
+      flex: 1;
+      min-height: 48px;
+      background: #e65100;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-modal-submit:active {
+      background: #bf360c;
+    }
+
+    .btn-modal-cancel {
+      flex: 1;
+      min-height: 48px;
+      background: #333;
+      color: #ccc;
+      border: 1px solid #555;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-modal-cancel:active {
+      background: #222;
+    }
+
+    /* App Notification Toast */
+    .app-toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2e7d32;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      z-index: 500;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      display: none;
+      text-align: center;
+      max-width: 90%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Lock & Activation Overlay */
+    .lock-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 10, 10, 0.95);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .lock-overlay.active {
+      display: flex;
+    }
+
+    .lock-card {
+      background: #1e1e1e;
+      border: 1px solid #444;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 400px;
+      padding: 24px;
+      box-sizing: border-box;
+      text-align: center;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+    }
+
+    .lock-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #ff5252;
+      margin-bottom: 8px;
+    }
+
+    .lock-desc {
+      font-size: 14px;
+      color: #aaa;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .device-id-box {
+      background: #121212;
+      border: 1px dashed #666;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 15px;
+      color: #ffb74d;
+      margin-bottom: 16px;
+      word-break: break-all;
+      user-select: all;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .device-id-box:hover {
+      background: #1a1a1a;
+      border-color: #ffa726;
+    }
+
+    .license-input {
+      width: 100%;
+      min-height: 48px;
+      background: #262626;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 8px;
+      font-size: 16px;
+      text-align: center;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+      text-transform: uppercase;
+      outline: none;
+    }
+
+    .license-input:focus {
+      border-color: #2e7d32;
+    }
+
+    .btn-activate {
+      width: 100%;
+      min-height: 48px;
+      background: #2e7d32;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: background-color 0.15s ease;
+    }
+
+    .btn-activate:active {
+      background: #1b5e20;
+    }
+
+    .btn-buy {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0288d1;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      font-size: 15px;
+      transition: background-color 0.15s ease;
+      cursor: pointer;
+    }
+
+    .btn-buy:active {
+      background: #0277bd;
+    }
+
+    .btn-lock-cancel {
+      background: transparent;
+      border: none;
+      color: #888;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 8px;
+      text-decoration: underline;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Referral Share Card */
+    .referral-card {
+      background: linear-gradient(135deg, rgba(30, 40, 50, 0.9) 0%, rgba(20, 25, 30, 0.95) 100%);
+      border: 1px solid rgba(76, 175, 80, 0.35);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 14px;
+      margin-bottom: 12px;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(76, 175, 80, 0.08);
+    }
+
+    .referral-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #81c784;
+      margin-bottom: 4px;
+    }
+
+    .referral-subtitle {
+      font-size: 12px;
+      color: #bbb;
+      line-height: 1.35;
+      margin-bottom: 10px;
+    }
+
+    .referral-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .btn-share {
+      flex: 1;
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 10px;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+      white-space: nowrap;
+    }
+
+    .btn-share:active {
+      transform: scale(0.98);
+    }
+
+    .btn-share-tg {
+      background: #2481cc;
+      color: #ffffff;
+    }
+
+    .btn-share-tg:hover {
+      background: #1c6fae;
+    }
+
+    .btn-share-max {
+      background: #37474f;
+      color: #eceff1;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-share-max:hover {
+      background: #455a64;
+    }
+
+    #stickyFooter {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #181818;
+      border-top: 2px solid #333;
+      padding: 10px 16px;
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.6);
+      z-index: 100;
+    }
+
+    .footer-top-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .lang-switch {
+      display: inline-flex;
+      background: #242424;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .lang-btn {
+      min-height: 36px;
+      height: 36px;
+      padding: 0 14px;
+      background: transparent;
+      color: #888888;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+      touch-action: manipulation;
+    }
+
+    .lang-btn:active {
+      transform: scale(0.96);
+    }
+
+    .lang-btn.active {
+      background: #1976d2;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(25, 118, 210, 0.4);
+    }
+
+    .footer-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .footer-main-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .total-label {
+      font-size: 14px;
+      text-transform: uppercase;
+      color: #aaa;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .total-units-val {
+      font-size: 32px;
+      font-weight: 900;
+      color: #4caf50;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .total-details {
+      font-size: 13px;
+      color: #888;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge-count {
+      min-width: 28px;
+      padding: 2px 6px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 800;
+      margin-left: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Product Color Themes */
+    .theme-blue   { --prod-color: #1976d2; --prod-text: #ffffff; }
+    .theme-green  { --prod-color: #388e3c; --prod-text: #ffffff; }
+    .theme-purple { --prod-color: #7b1fa2; --prod-text: #ffffff; }
+    .theme-amber  { --prod-color: #f57c00; --prod-text: #ffffff; }
+    .theme-red    { --prod-color: #d32f2f; --prod-text: #ffffff; }
+
+    /* Product Tabs */
+    .prod-tab {
+      min-height: var(--min-touch-size);
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: #2a2a2a;
+      color: #bbb;
+      border: 1px solid #444;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      user-select: none;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+
+    .prod-tab.active {
+      background: var(--prod-color);
+      color: var(--prod-text);
+      border-color: var(--prod-color);
+      font-weight: 700;
+    }
+
+    /* Variant Tabs */
+    .variant-tab {
+      min-height: var(--min-touch-size);
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #ccc;
+      border: 1px dashed var(--prod-color);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      user-select: none;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+
+    .variant-tab.active {
+      background: repeating-linear-gradient(45deg, var(--prod-color), var(--prod-color) 8px, rgba(0, 0, 0, 0.25) 8px, rgba(0, 0, 0, 0.25) 16px);
+      color: #fff;
+      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    /* iOS PWA Install Banner */
+    .ios-install-banner {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f2744 100%);
+      color: #e0f2fe;
+      border-bottom: 1px solid #0284c7;
+      padding: 10px 14px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+      line-height: 1.35;
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    .ios-install-text {
+      flex: 1;
+      font-weight: 500;
+    }
+
+    .btn-ios-close {
+      background: transparent;
+      border: none;
+      color: #93c5fd;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      line-height: 1;
+      flex-shrink: 0;
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-ios-close:active {
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <!-- iOS PWA Install Banner -->
+  <div id="iosInstallBanner" class="ios-install-banner">
+    <div class="ios-install-text">
+      📱 Установите приложение на iPhone: нажмите кнопку «Поделиться» (⎋) в Safari и выберите «На экран „Домой“» ⊞
+    </div>
+    <button type="button" id="closeIosBannerBtn" class="btn-ios-close" onclick="dismissIosInstallBanner()" title="Закрыть">✕</button>
+  </div>
+
+  <header id="appHeader">
+    <input type="text" id="sessionNameInput" placeholder="Intake #1" class="header-input">
+    <span id="licenseBadge" class="badge">Demo: 0/15</span>
+    <button id="clearSessionBtn" type="button" class="btn btn-clear">New / Clear</button>
+    <button id="exportExcelBtn" type="button" class="btn btn-export">Export .XLSX</button>
+  </header>
+  <nav id="productsBar"></nav>
+  <nav id="variantsBar"></nav>
+  <main id="counterSection">
+    <div class="names-bar">
+      <input type="text" id="productNameInput" placeholder="Product Name (e.g. Product A)" class="name-input">
+      <input type="text" id="variantNameInput" placeholder="Variant / Color (e.g. White)" class="name-input">
+    </div>
+    <div class="quants-bar">
+      <div class="quant-field">
+        <label class="quant-label" id="unitsPerBoxLabel" for="unitsPerBoxInput">Units / Box</label>
+        <input type="number" id="unitsPerBoxInput" class="quant-input" min="1" step="1">
+      </div>
+      <div class="quant-field">
+        <label class="quant-label" id="boxesPerPalletLabel" for="boxesPerPalletInput">Boxes / Pallet</label>
+        <input type="number" id="boxesPerPalletInput" class="quant-input" min="1" step="1">
+      </div>
+    </div>
+    <div id="counterControls" class="counter-controls">
+      <!-- Pallet Row -->
+      <div class="counter-group">
+        <button type="button" class="btn-decrement" id="decPalletBtn">-1</button>
+        <button type="button" class="btn-counter btn-pallet" id="incPalletBtn">
+          <span id="labelIncPallet">+1 Pallet</span>
+          <span class="badge-count" id="countBadgePallet">0</span>
+        </button>
+      </div>
+
+      <!-- Box Row -->
+      <div class="counter-group">
+        <button type="button" class="btn-decrement" id="decBoxBtn">-1</button>
+        <button type="button" class="btn-counter btn-box" id="incBoxBtn">
+          <span id="labelIncBox">+1 Box</span>
+          <span class="badge-count" id="countBadgeBox">0</span>
+        </button>
+      </div>
+
+      <!-- Units Row -->
+      <div class="counter-group">
+        <button type="button" class="btn-decrement" id="decUnitBtn">-1</button>
+        <button type="button" class="btn-counter btn-unit" id="incUnit1Btn" style="flex: 1;">
+          <span id="labelIncUnit1">+1 Unit</span>
+          <span class="badge-count" id="countBadgeUnit">0</span>
+        </button>
+        <button type="button" class="btn-counter btn-unit" id="incUnit5Btn" style="flex: 1;">+5 Units</button>
+      </div>
+
+      <!-- Custom Pallet Trigger & List -->
+      <button type="button" id="addCustomPalletBtn" class="btn-custom-pallet" onclick="openCustomPalletModal()">+ Add Custom Pallet (Tail)</button>
+      <div id="customPalletsList" class="custom-pallets-list"></div>
+    </div>
+  </main>
+  <footer id="stickyFooter">
+    <div class="footer-top-row">
+      <div class="lang-switch">
+        <button type="button" id="langBtnEn" class="lang-btn active" onclick="switchLanguage('en')">EN</button>
+        <button type="button" id="langBtnRu" class="lang-btn" onclick="switchLanguage('ru')">RU</button>
+      </div>
+    </div>
+    <div class="footer-summary">
+      <div class="footer-main-row">
+        <span class="total-label" id="totalUnitsLabel">TOTAL UNITS</span>
+        <span id="totalUnitsDisplay" class="total-units-val">0</span>
+      </div>
+      <div id="totalDetailsDisplay" class="total-details">
+        Pallets: 0 (0 custom) | Boxes: 0 | Units: 0
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Theme palette definition
+    const PRODUCT_THEMES = ['theme-blue', 'theme-green', 'theme-purple', 'theme-amber', 'theme-red'];
+
+    // Entity factory helpers
+    function createDefaultVariant(index = 1, name = '') {
+      return {
+        id: 'var_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        name: name || `Variant ${index}`,
+        stdPallets: 0,
+        customPallets: [],
+        looseBoxes: 0,
+        looseUnits: 0
+      };
+    }
+
+    function createDefaultProduct(index = 1, name = '', theme = '', defaultVariants = null) {
+      const assignedTheme = theme || PRODUCT_THEMES[(index - 1) % PRODUCT_THEMES.length];
+      const letter = String.fromCharCode(65 + ((index - 1) % 26));
+      return {
+        id: 'prod_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        name: name || `Product ${letter}`,
+        theme: assignedTheme,
+        unitsPerBox: 20,
+        boxesPerPallet: 15,
+        variants: defaultVariants || [createDefaultVariant(1, 'Variant 1')]
+      };
+    }
+
+    // Trial limits, language and storage keys
+    const TRIAL_LIMIT = 15;
+    const LICENSE_SALT = 'KLAD_SALT_2026';
+    const LICENSE_BASE_EPOCH = 1735689600000;
+    const STORAGE_KEY_STATE = 'kladovshik_app_state';
+    const STORAGE_KEY_DEVICE_ID = 'kladovshik_device_id';
+    const STORAGE_KEY_USAGE_COUNT = 'kladovshik_intake_count';
+    const STORAGE_KEY_BONUS_LIMIT = 'kladovshik_bonus_limit';
+    const STORAGE_KEY_LICENSE = 'kladovshik_license_key';
+    const STORAGE_KEY_LANG = 'kladovshik_lang';
+    const BOT_USERNAME = 'KladActivation_bot';
+    const SHARE_URL = 'https://t.me/KladActivation_bot';
+    const SHARE_TEXT = 'Рекомендую сервис Кладовщик — автономный учет и приемка товаров без серверов и абонентской платы!';
+
+    function getBonusLimit() {
+      try {
+        return parseInt(localStorage.getItem(STORAGE_KEY_BONUS_LIMIT) || '0', 10) || 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function getEffectiveLimit() {
+      return TRIAL_LIMIT + getBonusLimit();
+    }
+
+    // Localization Dictionary (i18n)
+    const TRANSLATIONS = {
+      en: {
+        exportBtn: 'Export .XLSX',
+        clearBtn: 'New / Clear',
+        clearConfirm: 'Start a new intake? All current products and counts will be reset.',
+        sessionNamePlaceholder: 'Intake #1',
+        sessionDefaultPrefix: 'Intake #',
+        prodNamePlaceholder: 'Product Name (e.g. Product A)',
+        varNamePlaceholder: 'Variant / Color (e.g. White)',
+        unitsPerBoxLabel: 'Units / Box',
+        boxesPerPalletLabel: 'Boxes / Pallet',
+        addPallet: '+1 Pallet',
+        addBox: '+1 Box',
+        addUnit: '+1 Unit',
+        add5Units: '+5 Units',
+        addCustomPallet: '+ Add Custom Pallet (Tail)',
+        totalUnitsLabel: 'TOTAL UNITS',
+        summaryFormat: (stdPallets, customCount, totalBoxes, looseUnits) =>
+          `Pallets: ${stdPallets} (${customCount} custom) | Total Boxes: ${totalBoxes} | Loose: ${looseUnits}`,
+        addProductBtn: '+ Product',
+        addVariantBtn: '+ Variant',
+        customPalletTitle: 'Add Custom Pallet',
+        customPalletPlaceholder: 'Boxes count (e.g. 8)',
+        cancelBtn: 'Cancel',
+        addPalletBtn: 'Add Pallet',
+        customPalletChip: (num, boxes) => `Pallet #${num}: <strong>${boxes}</strong> boxes`,
+        trialLimitTitle: 'Free Trial Limit Reached',
+        trialLimitDesc: (limit) => `You have completed ${limit || 15} free intakes. To unlock unlimited access, provide your Device ID to get an activation key.`,
+        licenseTitle: 'License Activation',
+        licenseDesc: 'Enter your activation key to unlock PRO features and unlimited intakes.',
+        licensePlaceholder: 'PRO-XXXX-XXXX-XXXX',
+        activateBtn: 'Activate PRO',
+        closeBtn: 'Close',
+        closeLockBtn: 'Назад к данным / Back to intake',
+        copyToast: 'Copied to clipboard!',
+        licenseSuccess: 'PRO activated successfully!',
+        licenseInvalid: 'Invalid activation key',
+        licenseExpired: 'Key expired (3 days limit)',
+        proUnlimitedBadge: 'PRO Unlimited',
+        demoBadge: (count, limit) => `Demo: ${count}/${limit || 15}`,
+        exportToast: 'Excel report downloaded!'
+      },
+      ru: {
+        exportBtn: 'Экспорт .XLSX',
+        clearBtn: 'Очистить',
+        clearConfirm: 'Начать новую приемку? Все данные будут сброшены.',
+        sessionNamePlaceholder: 'Приемка #1',
+        sessionDefaultPrefix: 'Приемка #',
+        prodNamePlaceholder: 'Название товара (напр. Товар А)',
+        varNamePlaceholder: 'Сорт / Цвет (напр. Белый)',
+        unitsPerBoxLabel: 'Штук в ящике',
+        boxesPerPalletLabel: 'Ящиков на паллете',
+        addPallet: '+1 Паллет',
+        addBox: '+1 Ящик',
+        addUnit: '+1 Шт',
+        add5Units: '+5 Шт',
+        addCustomPallet: '+ Нестандартный паллет',
+        totalUnitsLabel: 'ИТОГО ШТУК',
+        summaryFormat: (stdPallets, customCount, totalBoxes, looseUnits) =>
+          `Паллеты: ${stdPallets} (${customCount} нест.) | Всего ящиков: ${totalBoxes} | Штучно: ${looseUnits}`,
+        addProductBtn: '+ Товар',
+        addVariantBtn: '+ Вариант',
+        customPalletTitle: 'Добавить нестандартный паллет',
+        customPalletPlaceholder: 'Количество ящиков (напр. 8)',
+        cancelBtn: 'Отмена',
+        addPalletBtn: 'Добавить паллет',
+        customPalletChip: (num, boxes) => `Паллет #${num}: <strong>${boxes}</strong> ящ.`,
+        trialLimitTitle: 'Лимит бесплатных разгрузок исчерпан',
+        trialLimitDesc: (limit = 15) => (limit == 15 ? 'Вы завершили 15 бесплатных отгрузок. Для безлимитного доступа сообщите Device ID для получения ключа.' : `Вы завершили ${limit} бесплатных отгрузок. Для безлимитного доступа сообщите Device ID для получения ключа.`),
+        licenseTitle: 'Активация лицензии',
+        licenseDesc: 'Введите ключ активации для разблокировки PRO-версии и безлимитных приемок.',
+        licensePlaceholder: 'PRO-XXXX-XXXX-XXXX',
+        activateBtn: 'Активировать PRO',
+        closeBtn: 'Закрыть',
+        closeLockBtn: 'Назад к данным / Back to intake',
+        copyToast: 'Скопировано в буфер обмена!',
+        licenseSuccess: 'PRO успешно активирован!',
+        licenseInvalid: 'Неверный ключ активации',
+        licenseExpired: 'Срок действия ключа для активации истек (3 дня)',
+        proUnlimitedBadge: 'PRO Безлимит',
+        demoBadge: (count, limit) => `Демо: ${count}/${limit || 15}`,
+        exportToast: 'Отчет Excel успешно сформирован!'
+      }
+    };
+
+    function getInitialLang() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_LANG);
+        return (saved === 'ru') ? 'ru' : 'en';
+      } catch (e) {
+        return 'en';
+      }
+    }
+
+    function getInitialState() {
+      const currentCount = getUsageCount();
+      const currentLang = getInitialLang();
+      const prefix = (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang].sessionDefaultPrefix) || 'Intake #';
+      return {
+        currentLang: currentLang,
+        deviceId: (typeof initDeviceId === 'function' ? initDeviceId() : 'KLAD-DEMO-DEVICE'),
+        session: {
+          id: 'session_' + Date.now(),
+          name: prefix + (currentCount + 1),
+          date: new Date().toISOString()
+        },
+        activeProductIndex: 0,
+        activeVariantIndex: 0,
+        products: [
+          createDefaultProduct(1, 'Product A', 'theme-blue', [
+            createDefaultVariant(1, 'White'),
+            createDefaultVariant(2, 'Black')
+          ])
+        ]
+      };
+    }
+
+    // Centralized Application State
+    let state = getInitialState();
+
+    // Device ID management
+    function initDeviceId() {
+      try {
+        let deviceId = localStorage.getItem(STORAGE_KEY_DEVICE_ID);
+        if (!deviceId) {
+          const hex = Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('').toUpperCase();
+          const timestampTail = String(Date.now()).slice(-4);
+          deviceId = `KLAD-${hex}-${timestampTail}`;
+          localStorage.setItem(STORAGE_KEY_DEVICE_ID, deviceId);
+        }
+        return deviceId;
+      } catch (e) {
+        console.warn('localStorage unavailable for deviceId:', e);
+        return 'KLAD-DEMO-DEVICE';
+      }
+    }
+
+    // License & Usage tracking
+    function getUsageCount() {
+      try {
+        let count = parseInt(localStorage.getItem('kladovshik_intake_count') || '0', 10);
+        return isNaN(count) ? 0 : Math.max(0, count);
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function incrementUsageCount() {
+      try {
+        const next = getUsageCount() + 1;
+        localStorage.setItem(STORAGE_KEY_USAGE_COUNT, next.toString());
+        return next;
+      } catch (e) {
+        console.warn('Failed to increment usage count:', e);
+        return getUsageCount();
+      }
+    }
+
+    function isLicenseActive() {
+      try {
+        if (localStorage.getItem('kladovshik_pro_license') === 'true') {
+          return true;
+        }
+        const licenseKey = localStorage.getItem(STORAGE_KEY_LICENSE);
+        const devId = (state && state.deviceId) || (typeof currentDeviceId !== 'undefined' ? currentDeviceId : '') || (typeof initDeviceId === 'function' ? initDeviceId() : 'KLAD-DEMO-DEVICE');
+        if (licenseKey && validateKey(devId, licenseKey)) {
+          return true;
+        }
+        return getUsageCount() < getEffectiveLimit();
+      } catch (e) {
+        return true;
+      }
+    }
+
+    // State persistence
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY_STATE, JSON.stringify(state));
+      } catch (e) {
+        console.warn('Failed to save state to localStorage:', e);
+      }
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_STATE);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            if (parsed.currentLang) state.currentLang = parsed.currentLang;
+            if (parsed.session) state.session = parsed.session;
+            if (typeof parsed.activeProductIndex === 'number') state.activeProductIndex = parsed.activeProductIndex;
+            if (typeof parsed.activeVariantIndex === 'number') state.activeVariantIndex = parsed.activeVariantIndex;
+            if (Array.isArray(parsed.products) && parsed.products.length > 0) {
+              state.products = parsed.products;
+              // Clean up test name if present
+              if (state.products[0] && state.products[0].name === 'Космонавт') {
+                state.products[0].name = 'Product A';
+              }
+              // Ensure default variants for first product include White & Black if not customized
+              if (state.products[0] && Array.isArray(state.products[0].variants)) {
+                if (state.products[0].variants.length === 1 && (state.products[0].variants[0].name === 'Variant 1' || state.products[0].variants[0].name === 'Черный')) {
+                  state.products[0].variants[0].name = 'White';
+                  state.products[0].variants.push(createDefaultVariant(2, 'Black'));
+                }
+              }
+            }
+          }
+        }
+        const savedLang = localStorage.getItem(STORAGE_KEY_LANG);
+        if (savedLang === 'ru' || savedLang === 'en') {
+          state.currentLang = savedLang;
+        }
+        state.deviceId = localStorage.getItem(STORAGE_KEY_DEVICE_ID) || (typeof initDeviceId === 'function' ? initDeviceId() : 'KLAD-DEMO-DEVICE');
+      } catch (e) {
+        console.warn('Failed to load state from localStorage:', e);
+      }
+    }
+
+    // UI Rendering: Header & Session
+    function renderHeader() {
+      const nameInput = document.getElementById('sessionNameInput');
+      const badge = document.getElementById('licenseBadge');
+
+      if (nameInput) {
+        nameInput.value = state.session.name || '';
+      }
+
+      if (badge) {
+        badge.style.cursor = 'pointer';
+        badge.title = 'Click to manage license';
+        const isPro = (localStorage.getItem('kladovshik_pro_license') === 'true');
+        const licenseKey = localStorage.getItem(STORAGE_KEY_LICENSE);
+        const devId = (state && state.deviceId) || (typeof currentDeviceId !== 'undefined' ? currentDeviceId : '') || (typeof initDeviceId === 'function' ? initDeviceId() : 'KLAD-DEMO-DEVICE');
+        const hasKey = isPro || (licenseKey && validateKey(devId, licenseKey));
+        const count = getUsageCount();
+        const effectiveLimit = getEffectiveLimit();
+        const t = TRANSLATIONS[state.currentLang] || TRANSLATIONS.en;
+
+        if (hasKey) {
+          badge.textContent = t.proUnlimitedBadge;
+          badge.style.background = '#1b3a24';
+          badge.style.color = '#4caf50';
+          badge.style.borderColor = '#388e3c';
+        } else {
+          badge.textContent = t.demoBadge(count, effectiveLimit);
+          if (count >= effectiveLimit) {
+            badge.style.background = '#3a1b1b';
+            badge.style.color = '#ef5350';
+            badge.style.borderColor = '#d32f2f';
+          } else {
+            badge.style.background = '#2d2616';
+            badge.style.color = '#ffa726';
+            badge.style.borderColor = '#ff9800';
+          }
+        }
+      }
+    }
+
+    // Header event listeners
+    const sessionNameInput = document.getElementById('sessionNameInput');
+    if (sessionNameInput) {
+      sessionNameInput.addEventListener('input', (e) => {
+        state.session.name = e.target.value;
+        saveState();
+      });
+    }
+
+    function handleClearSession() {
+      if (!confirm('Начать новую приемку? Все данные будут сброшены.')) {
+        return;
+      }
+
+      state = getInitialState();
+      saveState();
+
+      renderHeader();
+      renderProductsBar();
+      renderVariantsBar();
+      renderNamesInputs();
+      renderQuants();
+      renderCustomPalletsList();
+      updateTotalDisplay();
+      checkTrialLimit();
+    }
+    window.handleClearSession = handleClearSession;
+
+    const clearSessionBtn = document.getElementById('clearSessionBtn');
+    if (clearSessionBtn) {
+      clearSessionBtn.addEventListener('click', handleClearSession);
+    }
+
+    const exportBtn = document.getElementById('exportExcelBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        generateExcelReport();
+      });
+    }
+
+    // UI Rendering: Products Bar
+    function renderProductsBar() {
+      const bar = document.getElementById('productsBar');
+      if (!bar) return;
+
+      bar.innerHTML = '';
+
+      state.products.forEach((product, index) => {
+        const tabBtn = document.createElement('button');
+        tabBtn.className = `prod-tab ${product.theme}${index === state.activeProductIndex ? ' active' : ''}`;
+        tabBtn.textContent = product.name;
+        tabBtn.addEventListener('click', () => {
+          state.activeProductIndex = index;
+          state.activeVariantIndex = 0;
+          saveState();
+          renderProductsBar();
+          renderVariantsBar();
+          renderNamesInputs();
+          renderQuants();
+          renderCustomPalletsList();
+          updateTotalDisplay();
+        });
+        bar.appendChild(tabBtn);
+      });
+
+      // Add product button
+      const addBtn = document.createElement('button');
+      addBtn.className = 'btn-add-prod';
+      const t = TRANSLATIONS[state.currentLang] || TRANSLATIONS.en;
+      addBtn.textContent = t.addProductBtn;
+      addBtn.addEventListener('click', () => addProduct());
+      bar.appendChild(addBtn);
+    }
+
+    function addProduct() {
+      const nextTheme = PRODUCT_THEMES[state.products.length % PRODUCT_THEMES.length];
+      const nextIndex = state.products.length + 1;
+      const letter = String.fromCharCode(65 + ((nextIndex - 1) % 26));
+      const newProduct = createDefaultProduct(
+        nextIndex,
+        'Product ' + letter,
+        nextTheme
+      );
+
+      state.products.push(newProduct);
+      state.activeProductIndex = state.products.length - 1;
+      state.activeVariantIndex = 0;
+      saveState();
+      renderProductsBar();
+      renderVariantsBar();
+      renderNamesInputs();
+      renderQuants();
+      renderCustomPalletsList();
+      updateTotalDisplay();
+
+      setTimeout(() => {
+        const prodInput = document.getElementById('productNameInput');
+        if (prodInput) {
+          prodInput.focus();
+          prodInput.select();
+        }
+      }, 50);
+    }
+
+    // UI Rendering: Variants Bar
+    function renderVariantsBar() {
+      const bar = document.getElementById('variantsBar');
+      if (!bar) return;
+
+      const currentProd = state.products[state.activeProductIndex];
+      if (!currentProd) {
+        bar.innerHTML = '';
+        return;
+      }
+
+      // Set current product theme on variantsBar to inherit --prod-color
+      bar.className = currentProd.theme;
+      bar.innerHTML = '';
+
+      if (Array.isArray(currentProd.variants)) {
+        currentProd.variants.forEach((variant, index) => {
+          const tabBtn = document.createElement('button');
+          tabBtn.className = `variant-tab${index === state.activeVariantIndex ? ' active' : ''}`;
+          tabBtn.textContent = variant.name;
+          tabBtn.addEventListener('click', () => {
+            state.activeVariantIndex = index;
+            saveState();
+            renderVariantsBar();
+            renderNamesInputs();
+            renderCustomPalletsList();
+            if (typeof renderQuantums === 'function') renderQuantums();
+            if (typeof renderCounters === 'function') renderCounters();
+            updateTotalDisplay();
+          });
+          bar.appendChild(tabBtn);
+        });
+      }
+
+      // Add variant button
+      const addBtn = document.createElement('button');
+      addBtn.className = 'btn-add-variant';
+      const t = TRANSLATIONS[state.currentLang] || TRANSLATIONS.en;
+      addBtn.textContent = t.addVariantBtn;
+      addBtn.addEventListener('click', () => addVariant());
+      bar.appendChild(addBtn);
+    }
+
+    function addVariant() {
+      const currentProd = state.products[state.activeProductIndex];
+      if (!currentProd) return;
+
+      if (!Array.isArray(currentProd.variants)) {
+        currentProd.variants = [];
+      }
+
+      const nextNum = currentProd.variants.length + 1;
+      const newVariant = createDefaultVariant(
+        nextNum,
+        'Variant ' + nextNum
+      );
+
+      currentProd.variants.push(newVariant);
+      state.activeVariantIndex = currentProd.variants.length - 1;
+      saveState();
+      renderVariantsBar();
+      renderNamesInputs();
+      renderCustomPalletsList();
+      if (typeof renderQuantums === 'function') renderQuantums();
+      if (typeof renderCounters === 'function') renderCounters();
+      updateTotalDisplay();
+
+      setTimeout(() => {
+        const varInput = document.getElementById('variantNameInput');
+        if (varInput) {
+          varInput.focus();
+          varInput.select();
+        }
+      }, 50);
+    }
+
+    // UI Rendering: Product & Variant Name Inputs
+    function renderNamesInputs() {
+      const prodInput = document.getElementById('productNameInput');
+      const varInput = document.getElementById('variantNameInput');
+      const currentProd = state.products[state.activeProductIndex];
+      const currentVar = getActiveVariant();
+
+      if (prodInput && currentProd) {
+        prodInput.value = currentProd.name || '';
+      }
+      if (varInput && currentVar) {
+        varInput.value = currentVar.name || '';
+      }
+    }
+
+    function initNamesListeners() {
+      const prodInput = document.getElementById('productNameInput');
+      if (prodInput) {
+        prodInput.addEventListener('input', (e) => {
+          const currentProd = state.products[state.activeProductIndex];
+          if (!currentProd) return;
+          currentProd.name = e.target.value;
+          saveState();
+          const activeTab = document.querySelector('#productsBar .prod-tab.active');
+          if (activeTab) {
+            activeTab.textContent = currentProd.name || `Product ${state.activeProductIndex + 1}`;
+          }
+        });
+      }
+
+      const varInput = document.getElementById('variantNameInput');
+      if (varInput) {
+        varInput.addEventListener('input', (e) => {
+          const currentVar = getActiveVariant();
+          if (!currentVar) return;
+          currentVar.name = e.target.value;
+          saveState();
+          const activeTab = document.querySelector('#variantsBar .variant-tab.active');
+          if (activeTab) {
+            activeTab.textContent = currentVar.name || `Variant ${state.activeVariantIndex + 1}`;
+          }
+        });
+      }
+    }
+
+    // UI Rendering: Quants
+    function renderQuants() {
+      const currentProd = state.products[state.activeProductIndex];
+      if (!currentProd) return;
+
+      const unitsInput = document.getElementById('unitsPerBoxInput');
+      const boxesInput = document.getElementById('boxesPerPalletInput');
+
+      if (unitsInput) {
+        unitsInput.value = currentProd.unitsPerBox || 20;
+      }
+      if (boxesInput) {
+        boxesInput.value = currentProd.boxesPerPallet || 15;
+      }
+    }
+
+    // Quants Event Listeners
+    const unitsPerBoxInput = document.getElementById('unitsPerBoxInput');
+    if (unitsPerBoxInput) {
+      const handleUnitsChange = (e) => {
+        const currentProd = state.products[state.activeProductIndex];
+        if (!currentProd) return;
+        const val = parseInt(e.target.value, 10);
+        currentProd.unitsPerBox = (!isNaN(val) && val > 0) ? val : 1;
+        saveState();
+        if (typeof renderCounters === 'function') renderCounters();
+      };
+      unitsPerBoxInput.addEventListener('input', handleUnitsChange);
+      unitsPerBoxInput.addEventListener('change', handleUnitsChange);
+    }
+
+    const boxesPerPalletInput = document.getElementById('boxesPerPalletInput');
+    if (boxesPerPalletInput) {
+      const handleBoxesChange = (e) => {
+        const currentProd = state.products[state.activeProductIndex];
+        if (!currentProd) return;
+        const val = parseInt(e.target.value, 10);
+        currentProd.boxesPerPallet = (!isNaN(val) && val > 0) ? val : 1;
+        saveState();
+        if (typeof renderCounters === 'function') renderCounters();
+      };
+      boxesPerPalletInput.addEventListener('input', handleBoxesChange);
+      boxesPerPalletInput.addEventListener('change', handleBoxesChange);
+    }
+
+    // Active variant helper
+    function getActiveVariant() {
+      const p = state.products[state.activeProductIndex];
+      if (!p || !Array.isArray(p.variants)) return null;
+      return p.variants[state.activeVariantIndex] || null;
+    }
+
+    // Modify counts for active variant
+    function modifyCount(type, delta) {
+      const v = getActiveVariant();
+      if (!v) return;
+
+      if (type === 'stdPallets') {
+        v.stdPallets = Math.max(0, (v.stdPallets || 0) + delta);
+      } else if (type === 'looseBoxes') {
+        v.looseBoxes = Math.max(0, (v.looseBoxes || 0) + delta);
+      } else if (type === 'looseUnits') {
+        v.looseUnits = Math.max(0, (v.looseUnits || 0) + delta);
+      }
+
+      saveState();
+      updateTotalDisplay();
+    }
+
+    // Calculations & Totals
+    function calculateVariantTotals(variant, product) {
+      if (!variant || !product) {
+        return { totalBoxes: 0, totalUnits: 0, customBoxes: 0, customPalletsCount: 0 };
+      }
+      const customBoxes = (variant.customPallets || []).reduce((acc, val) => acc + (parseInt(val, 10) || 0), 0);
+      const boxesPerPallet = parseInt(product.boxesPerPallet, 10) || 15;
+      const unitsPerBox = parseInt(product.unitsPerBox, 10) || 20;
+      const stdPallets = parseInt(variant.stdPallets, 10) || 0;
+      const looseBoxes = parseInt(variant.looseBoxes, 10) || 0;
+      const looseUnits = parseInt(variant.looseUnits, 10) || 0;
+
+      const totalBoxes = (stdPallets * boxesPerPallet) + customBoxes + looseBoxes;
+      const totalUnits = (totalBoxes * unitsPerBox) + looseUnits;
+
+      return {
+        totalBoxes,
+        totalUnits,
+        customBoxes,
+        customPalletsCount: (variant.customPallets || []).length
+      };
+    }
+
+    function updateTotalDisplay() {
+      const currentProd = state.products[state.activeProductIndex];
+      const currentVar = getActiveVariant();
+      if (!currentProd || !currentVar) return;
+
+      const res = calculateVariantTotals(currentVar, currentProd);
+
+      const totalUnitsDisplay = document.getElementById('totalUnitsDisplay');
+      if (totalUnitsDisplay) {
+        totalUnitsDisplay.textContent = res.totalUnits.toLocaleString();
+      }
+
+      const totalDetailsDisplay = document.getElementById('totalDetailsDisplay');
+      if (totalDetailsDisplay) {
+        const t = TRANSLATIONS[state.currentLang] || TRANSLATIONS.en;
+        totalDetailsDisplay.textContent = t.summaryFormat(
+          currentVar.stdPallets || 0,
+          res.customPalletsCount,
+          res.totalBoxes,
+          currentVar.looseUnits || 0
+        );
+      }
+
+      // Update badges on quick counter buttons
+      const badgePallet = document.getElementById('countBadgePallet');
+      if (badgePallet) badgePallet.textContent = currentVar.stdPallets || 0;
+
+      const badgeBox = document.getElementById('countBadgeBox');
+      if (badgeBox) badgeBox.textContent = currentVar.looseBoxes || 0;
+
+      const badgeUnit = document.getElementById('countBadgeUnit');
+      if (badgeUnit) badgeUnit.textContent = currentVar.looseUnits || 0;
+    }
+
+    function renderCounters() {
+      updateTotalDisplay();
+    }
+
+    // Quick Counter Button Listeners
+    function initCounterButtons() {
+      const decPallet = document.getElementById('decPalletBtn');
+      const incPallet = document.getElementById('incPalletBtn');
+      const decBox = document.getElementById('decBoxBtn');
+      const incBox = document.getElementById('incBoxBtn');
+      const decUnit = document.getElementById('decUnitBtn');
+      const incUnit1 = document.getElementById('incUnit1Btn');
+      const incUnit5 = document.getElementById('incUnit5Btn');
+
+      if (decPallet) decPallet.addEventListener('click', () => modifyCount('stdPallets', -1));
+      if (incPallet) incPallet.addEventListener('click', () => modifyCount('stdPallets', 1));
+      if (decBox) decBox.addEventListener('click', () => modifyCount('looseBoxes', -1));
+      if (incBox) incBox.addEventListener('click', () => modifyCount('looseBoxes', 1));
+      if (decUnit) decUnit.addEventListener('click', () => modifyCount('looseUnits', -1));
+      if (incUnit1) incUnit1.addEventListener('click', () => modifyCount('looseUnits', 1));
+      if (incUnit5) incUnit5.addEventListener('click', () => modifyCount('looseUnits', 5));
+    }
+
+    // Custom Pallet Modal & Management
+    function openCustomPalletModal() {
+      const modal = document.getElementById('customPalletModal');
+      const input = document.getElementById('customPalletBoxesInput');
+      if (modal) modal.classList.add('open');
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 50);
+      }
+    }
+
+    function closeCustomPalletModal() {
+      const modal = document.getElementById('customPalletModal');
+      const input = document.getElementById('customPalletBoxesInput');
+      if (input) input.blur();
+      if (modal) modal.classList.remove('open');
+    }
+
+    function submitCustomPallet() {
+      const input = document.getElementById('customPalletBoxesInput');
+      if (!input) return;
+
+      const boxesCount = parseInt(input.value, 10);
+      if (isNaN(boxesCount) || boxesCount <= 0) {
+        input.focus();
+        return;
+      }
+
+      const v = getActiveVariant();
+      if (!v) return;
+
+      if (!Array.isArray(v.customPallets)) {
+        v.customPallets = [];
+      }
+
+      v.customPallets.push(boxesCount);
+      closeCustomPalletModal();
+      saveState();
+      renderCustomPalletsList();
+      updateTotalDisplay();
+    }
+
+    function removeCustomPallet(index) {
+      const v = getActiveVariant();
+      if (v && Array.isArray(v.customPallets)) {
+        v.customPallets.splice(index, 1);
+        saveState();
+        renderCustomPalletsList();
+        updateTotalDisplay();
+      }
+    }
+
+    function renderCustomPalletsList() {
+      const container = document.getElementById('customPalletsList');
+      if (!container) return;
+
+      container.innerHTML = '';
+      const v = getActiveVariant();
+      if (!v || !Array.isArray(v.customPallets) || v.customPallets.length === 0) {
+        return;
+      }
+
+      const t = TRANSLATIONS[state.currentLang] || TRANSLATIONS.en;
+      v.customPallets.forEach((boxes, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'custom-chip';
+        chip.innerHTML = `<span>${t.customPalletChip(i + 1, boxes)}</span><span class="custom-chip-del" onclick="removeCustomPallet(${i})" title="${t.cancelBtn || 'Remove'}">✕</span>`;
+        container.appendChild(chip);
+      });
+    }
+
+    // License Key Offline Validation Algorithm with 3-Day Expiry Window
+    function computeLicenseHash(deviceId, timeHex) {
+      const cleanId = (deviceId || '').trim().toUpperCase();
+      const raw = `${cleanId}:${timeHex}:${LICENSE_SALT}`;
+      let h = 0x811c9dc5;
+      for (let i = 0; i < raw.length; i++) {
+        h ^= raw.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+      }
+      return (h >>> 0).toString(16).toUpperCase().padStart(8, '0');
+    }
+
+    function generateLicenseKey(deviceId, timestamp = Date.now()) {
+      const cleanId = (deviceId || '').trim().toUpperCase();
+      if (!cleanId) return null;
+      const hours = Math.floor((timestamp - LICENSE_BASE_EPOCH) / (3600 * 1000));
+      const timeHex = (hours & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+      const hashHex = computeLicenseHash(cleanId, timeHex);
+      return `PRO-${timeHex}-${hashHex.slice(0, 4)}-${hashHex.slice(4, 8)}`;
+    }
+
+    function validateKey(deviceId, key, checkExpiry = false) {
+      validateKey.lastError = null;
+      if (!key || typeof key !== 'string') {
+        validateKey.lastError = 'empty';
+        return false;
+      }
+      const inputClean = key.trim().toUpperCase();
+      if (!inputClean) {
+        validateKey.lastError = 'empty';
+        return false;
+      }
+      if (inputClean === 'PRO-MASTER-UNLIMITED') {
+        validateKey.lastError = null;
+        return true;
+      }
+
+      const parts = inputClean.split('-');
+      if (parts.length !== 4 || parts[0] !== 'PRO') {
+        validateKey.lastError = 'invalid_format';
+        return false;
+      }
+
+      const timeHex = parts[1];
+      const inputHash = parts[2] + parts[3];
+      if (timeHex.length !== 4 || inputHash.length !== 8) {
+        validateKey.lastError = 'invalid_format';
+        return false;
+      }
+
+      const hours = parseInt(timeHex, 16);
+      if (isNaN(hours)) {
+        validateKey.lastError = 'invalid_format';
+        return false;
+      }
+
+      const cleanDeviceId = (deviceId || '').trim().toUpperCase();
+      const expectedHash = computeLicenseHash(cleanDeviceId, timeHex);
+      if (inputHash !== expectedHash) {
+        validateKey.lastError = 'invalid_device';
+        return false;
+      }
+
+      if (checkExpiry) {
+        const genTime = LICENSE_BASE_EPOCH + hours * 3600 * 1000;
+        const now = Date.now();
+        const ageMs = now - genTime;
+        // Expired if issued more than 72 hours (3 days) ago or generated > 1 hour in the future
+        if (ageMs > 72 * 3600 * 1000 || ageMs < -3600 * 1000) {
+          validateKey.lastError = 'expired';
+          return false;
+        }
+      }
+
+      validateKey.lastError = null;
+      return true;
+    }
+    validateKey.lastError = null;
+    window.validateKey = validateKey;
+    window.generateLicenseKey = generateLicenseKey;
+
+    function getTelegramBuyUrl() {
+      const devId = (state && state.deviceId) || (typeof currentDeviceId !== 'undefined' ? currentDeviceId : '') || (typeof initDeviceId === 'function' ? initDeviceId() : 'KLAD-DEMO-DEVICE');
+      return `https://t.me/${BOT_USERNAME}?startapp=${encodeURIComponent(devId)}`;
+    }
+
+    function openActivationModal(isForced = false) {
+      const modal = document.getElementById('activationModal');
+      const title = document.getElementById('activationTitle');
+      const desc = document.getElementById('activationDesc');
+      const idBox = document.getElementById('activationDeviceIdBox');
+      const closeBtn = document.getElementById('closeLockModalBtn') || document.getElementById('lockCloseBtn');
+      const feedback = document.getElementById('licenseFeedback');
+      const input = document.getElementById('licenseKeyInput');
+      const buyBtn = document.getElementById('buyLicenseBtn') || document.querySelector('.btn-buy');
+
+      if (!modal) return;
+
+      if (buyBtn) {
+        buyBtn.href = getTelegramBuyUrl();
+      }
+
+      if (idBox) {
+        idBox.textContent = currentDeviceId;
+      }
+      if (feedback) {
+        feedback.textContent = '';
+      }
+      if (input) {
+        input.value = '';
+        input.style.borderColor = '#555';
+      }
+
+      const t = TRANSLATIONS[state.currentLang] || TRANSLATIONS.en;
+      if (isForced) {
+        if (title) title.textContent = t.trialLimitTitle;
+        if (desc) desc.textContent = t.trialLimitDesc(getEffectiveLimit());
+      } else {
+        if (title) title.textContent = t.licenseTitle;
+        if (desc) desc.textContent = t.licenseDesc;
+      }
+      if (closeBtn) {
+        closeBtn.style.display = 'inline-flex';
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closeActivationModal() {
+      const modal = document.getElementById('activationModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function checkTrialLimit() {
+      const hasLicense = (localStorage.getItem('kladovshik_pro_license') === 'true') || Boolean(localStorage.getItem(STORAGE_KEY_LICENSE));
+      const count = getUsageCount();
+      const effectiveLimit = getEffectiveLimit();
+
+      renderHeader();
+
+      if (hasLicense) {
+        closeActivationModal();
+        return true;
+      }
+
+      if (count >= effectiveLimit) {
+        openActivationModal(true);
+        return false;
+      }
+
+      return true;
+    }
+
+    function completeIntake() {
+      const nextCount = incrementUsageCount();
+      saveState();
+      checkTrialLimit();
+      return nextCount;
+    }
+
+    function addShareBonus(messengerName) {
+      try {
+        const currentBonus = getBonusLimit();
+        const newBonus = currentBonus + 2;
+        localStorage.setItem(STORAGE_KEY_BONUS_LIMIT, newBonus.toString());
+        if (state) {
+          state.bonusLimit = newBonus;
+          saveState();
+        }
+
+        renderHeader();
+
+        const count = getUsageCount();
+        const effectiveLimit = getEffectiveLimit();
+        if (count < effectiveLimit) {
+          closeActivationModal();
+        }
+
+        const bonusMsg = 'Спасибо за рекомендацию! Вам начислено +2 бесплатные операции.';
+        if (typeof showExportToast === 'function') {
+          showExportToast(bonusMsg);
+        }
+        alert(bonusMsg);
+      } catch (err) {
+        console.error('Error adding share bonus:', err);
+      }
+    }
+
+    function shareToTelegram() {
+      const shareUrl = SHARE_URL;
+      const shareText = SHARE_TEXT;
+      const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
+      window.open(tgUrl, '_blank');
+      addShareBonus('Telegram');
+    }
+
+    function shareToMax() {
+      const shareUrl = SHARE_URL;
+      const shareText = SHARE_TEXT;
+      if (navigator.share) {
+        navigator.share({
+          title: 'Кладовщик',
+          text: shareText,
+          url: shareUrl
+        }).catch((e) => console.log('Share dismissed/failed:', e));
+      } else {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+          }
+        } catch (e) {}
+        const maxUrl = `https://max.im/share?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
+        window.open(maxUrl, '_blank');
+      }
+      addShareBonus('MAX');
+    }
+
+    window.addShareBonus = addShareBonus;
+    window.shareToTelegram = shareToTelegram;
+    window.shareToMax = shareToMax;
+
+    function handleActivation() {
+      try {
+        const input = document.getElementById('licenseKeyInput');
+        const feedback = document.getElementById('licenseFeedback');
+        const rawKey = input ? input.value : '';
+        const key = (rawKey || '').trim().toUpperCase();
+        const isRu = (state && state.currentLang === 'ru');
+
+        if (!key) {
+          const emptyMsg = isRu ? 'Введите ключ активации' : 'Please enter an activation key';
+          if (feedback) {
+            feedback.textContent = emptyMsg;
+            feedback.style.color = '#ff9800';
+          }
+          if (input) {
+            input.style.borderColor = '#ff9800';
+            input.focus();
+          }
+          alert(emptyMsg);
+          return;
+        }
+
+        const devId = (state && state.deviceId) || (typeof currentDeviceId !== 'undefined' ? currentDeviceId : '') || (typeof initDeviceId === 'function' ? initDeviceId() : 'KLAD-DEMO-DEVICE');
+        const isValid = validateKey(devId, key, true);
+
+        if (isValid) {
+          // 1. Записать статус PRO в localStorage
+          localStorage.setItem('kladovshik_pro_license', 'true');
+          localStorage.setItem(STORAGE_KEY_LICENSE, key);
+          localStorage.setItem('kladovshik_license_activated', 'true');
+
+          // 2. Закрыть модальное окно активации
+          closeActivationModal();
+
+          // 3. Обновить статус бейджа и разблокировать интерфейс
+          renderHeader();
+          checkTrialLimit();
+
+          // 4. Показать подтверждение
+          const successMsg = isRu ? 'Лицензия PRO успешно активирована!' : 'PRO license successfully activated!';
+          alert(successMsg);
+        } else {
+          let errorMsg = '';
+          if (validateKey.lastError === 'expired') {
+            errorMsg = isRu ? 'Истек 3-дневный срок активации ключа' : 'Key expired (3 days limit)';
+          } else if (validateKey.lastError === 'invalid_device') {
+            errorMsg = isRu ? 'Неверный ключ для данного устройства' : 'Invalid key for this device';
+          } else {
+            errorMsg = isRu ? 'Неверный ключ для данного устройства' : 'Invalid activation key for this device';
+          }
+
+          if (feedback) {
+            feedback.textContent = errorMsg;
+            feedback.style.color = '#ff5252';
+          }
+          if (input) {
+            input.style.borderColor = '#ff5252';
+            input.focus();
+          }
+          alert(errorMsg);
+        }
+      } catch (err) {
+        console.error('Activation handler error:', err);
+        alert('Ошибка при активации: ' + (err && err.message ? err.message : err));
+      }
+    }
+    window.handleActivation = handleActivation;
+
+    // Modal & Activation Event Listeners
+    function initActivationListeners() {
+      const badge = document.getElementById('licenseBadge');
+      if (badge) {
+        badge.addEventListener('click', () => openActivationModal(false));
+      }
+
+      const closeLockModalBtn = document.getElementById('closeLockModalBtn');
+      if (closeLockModalBtn) {
+        closeLockModalBtn.addEventListener('click', closeActivationModal);
+      }
+
+      const lockCloseBtn = document.getElementById('lockCloseBtn');
+      if (lockCloseBtn) {
+        lockCloseBtn.addEventListener('click', closeActivationModal);
+      }
+
+      const idBox = document.getElementById('activationDeviceIdBox');
+      if (idBox) {
+        idBox.addEventListener('click', () => {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(currentDeviceId).then(() => {
+              const toast = document.getElementById('copyToast');
+              if (toast) {
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 2000);
+              }
+            });
+          }
+        });
+      }
+
+      const activateBtn = document.getElementById('activateBtn') || document.getElementById('submitKeyBtn');
+      if (activateBtn) {
+        activateBtn.addEventListener('click', handleActivation);
+      }
+
+      const licInput = document.getElementById('licenseKeyInput');
+      if (licInput) {
+        licInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleActivation();
+          }
+        });
+      }
+
+      const buyBtn = document.getElementById('buyLicenseBtn') || document.querySelector('.btn-buy');
+      if (buyBtn) {
+        buyBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const url = getTelegramBuyUrl();
+          window.open(url, '_blank');
+        });
+      }
+
+      const shareTgBtn = document.getElementById('shareTgBtn');
+      if (shareTgBtn) {
+        shareTgBtn.addEventListener('click', shareToTelegram);
+      }
+
+      const shareMaxBtn = document.getElementById('shareMaxBtn');
+      if (shareMaxBtn) {
+        shareMaxBtn.addEventListener('click', shareToMax);
+      }
+    }
+
+    // Excel Report Generation via SheetJS
+    function showExportToast(msg) {
+      let toast = document.getElementById('appToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'appToast';
+        toast.className = 'app-toast';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+
+    let isExporting = false;
+    function generateExcelReport() {
+      if (isExporting) return;
+      if (typeof XLSX === 'undefined') {
+        alert('SheetJS library is loading or unavailable.');
+        return;
+      }
+
+      if (!isLicenseActive()) {
+        checkTrialLimit();
+        return;
+      }
+
+      isExporting = true;
+      try {
+
+      let currentLang = 'en';
+      try {
+        if (state && state.currentLang) {
+          currentLang = state.currentLang;
+        } else {
+          currentLang = localStorage.getItem(STORAGE_KEY_LANG) || 'en';
+        }
+      } catch (e) {
+        currentLang = 'en';
+      }
+
+      const tEn = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS.en) ? TRANSLATIONS.en : {};
+      const t = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[currentLang]) ? TRANSLATIONS[currentLang] : tEn;
+      let savedLang = null;
+      try {
+        savedLang = localStorage.getItem(STORAGE_KEY_LANG);
+      } catch (e) {}
+      const isRu = (currentLang === 'ru') || (state && state.currentLang === 'ru') || (savedLang === 'ru');
+      const headers = isRu
+        ? ['Товар / Сорт', 'Паллеты, шт', 'Ящ / Паллет', '+ Ящики, шт', 'Всего ящиков', 'Шт / Ящик', '+ Штуки, шт', 'ИТОГО ШТУК']
+        : ['Item / Variant', 'Pallets', 'Boxes/Pallet', '+ Boxes', 'Total Boxes', 'Units/Box', '+ Units', 'TOTAL UNITS'];
+
+      const grandTotalText = isRu ? 'ИТОГО ПО ПРИЕМКЕ' : 'GRAND TOTAL';
+      const sheetName = isRu ? 'Ведомость приемки' : 'Intake Summary';
+      const successMessage = t.exportToast || tEn.exportToast || (isRu ? 'Отчет Excel успешно сформирован!' : 'Excel report downloaded!');
+
+      const rowsData = [headers];
+
+      let grandPallets = 0;
+      let grandLooseBoxes = 0;
+      let grandTotalBoxes = 0;
+      let grandLooseUnits = 0;
+      let grandTotalUnits = 0;
+
+      if (Array.isArray(state.products)) {
+        state.products.forEach((prod) => {
+          if (Array.isArray(prod.variants)) {
+            prod.variants.forEach((v) => {
+              const res = calculateVariantTotals(v, prod);
+
+              const prodName = (prod.name || (isRu ? 'Товар' : 'Product')).trim();
+              const varName = (v.name || '').trim();
+              let itemVariantStr = prodName;
+              if (varName && varName.toLowerCase() !== prodName.toLowerCase()) {
+                itemVariantStr = `${prodName} / ${varName}`;
+              }
+
+              const stdPallets = parseInt(v.stdPallets, 10) || 0;
+              const customCount = Array.isArray(v.customPallets) ? v.customPallets.length : 0;
+              const totalPallets = stdPallets + customCount;
+
+              const boxesPerPallet = parseInt(prod.boxesPerPallet, 10) || 15;
+              const looseBoxes = parseInt(v.looseBoxes, 10) || 0;
+              const totalBoxes = res.totalBoxes;
+              const unitsPerBox = parseInt(prod.unitsPerBox, 10) || 20;
+              const looseUnits = parseInt(v.looseUnits, 10) || 0;
+              const totalUnits = res.totalUnits;
+
+              rowsData.push([
+                itemVariantStr,
+                totalPallets,
+                boxesPerPallet,
+                looseBoxes,
+                totalBoxes,
+                unitsPerBox,
+                looseUnits,
+                totalUnits
+              ]);
+
+              grandPallets += totalPallets;
+              grandLooseBoxes += looseBoxes;
+              grandTotalBoxes += totalBoxes;
+              grandLooseUnits += looseUnits;
+              grandTotalUnits += totalUnits;
+            });
+          }
+        });
+      }
+
+      // Append Grand Total row
+      rowsData.push([
+        grandTotalText,
+        grandPallets,
+        '-',
+        grandLooseBoxes,
+        grandTotalBoxes,
+        '-',
+        grandLooseUnits,
+        grandTotalUnits
+      ]);
+
+      // Create sheet and set column widths
+      const ws = XLSX.utils.aoa_to_sheet(rowsData);
+
+      // Landscape A4 print setup
+      ws['!pageSetup'] = { orientation: 'landscape', paperSize: 9 };
+
+      // Fixed proportional widths tailored for single-sheet landscape A4
+      ws['!cols'] = [
+        { wch: 26 }, // Item / Variant
+        { wch: 12 }, // Pallets
+        { wch: 12 }, // Boxes/Pallet
+        { wch: 12 }, // + Boxes
+        { wch: 14 }, // Total Boxes
+        { wch: 12 }, // Units/Box
+        { wch: 12 }, // + Units
+        { wch: 16 }  // TOTAL UNITS
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+      // Sanitized filename
+      const cleanName = (state.session.name || 'Intake').replace(/[/\\?%*:|"<>]/g, '_').trim();
+      const filename = `${cleanName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+      try {
+        XLSX.writeFile(wb, filename, { bookType: 'xlsx', compression: true });
+      } catch (err) {
+        console.error('Export error:', err);
+        alert('Ошибка при сохранении Excel: ' + err.message);
+        return;
+      }
+
+      showExportToast(successMessage);
+
+      // If in trial mode, increment usage on export
+      try {
+        if (localStorage.getItem('kladovshik_pro_license') !== 'true' && !localStorage.getItem(STORAGE_KEY_LICENSE)) {
+          completeIntake();
+        }
+      } catch (e) {
+        console.warn('Trial increment error:', e);
+      }
+      } finally {
+        setTimeout(() => {
+          isExporting = false;
+        }, 500);
+      }
+    }
+    window.generateExcelReport = generateExcelReport;
+
+    // Localization switcher
+    function switchLanguage(lang) {
+      if (lang !== 'ru' && lang !== 'en') lang = 'en';
+      state.currentLang = lang;
+      try {
+        localStorage.setItem(STORAGE_KEY_LANG, lang);
+      } catch (e) {
+        console.warn('Failed to save language to localStorage:', e);
+      }
+
+      // 1) Update segment switch buttons
+      const btnEn = document.getElementById('langBtnEn');
+      const btnRu = document.getElementById('langBtnRu');
+      if (btnEn) btnEn.classList.toggle('active', lang === 'en');
+      if (btnRu) btnRu.classList.toggle('active', lang === 'ru');
+
+      const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+      // 2) Update DOM text and placeholders
+      const exportBtn = document.getElementById('exportExcelBtn');
+      if (exportBtn) exportBtn.textContent = t.exportBtn;
+
+      const clearBtn = document.getElementById('clearSessionBtn');
+      if (clearBtn) clearBtn.textContent = t.clearBtn;
+
+      const sInput = document.getElementById('sessionNameInput');
+      if (sInput) sInput.placeholder = t.sessionNamePlaceholder;
+
+      const pInput = document.getElementById('productNameInput');
+      if (pInput) pInput.placeholder = t.prodNamePlaceholder;
+
+      const vInput = document.getElementById('variantNameInput');
+      if (vInput) vInput.placeholder = t.varNamePlaceholder;
+
+      const uLabel = document.getElementById('unitsPerBoxLabel');
+      if (uLabel) uLabel.textContent = t.unitsPerBoxLabel;
+
+      const bLabel = document.getElementById('boxesPerPalletLabel');
+      if (bLabel) bLabel.textContent = t.boxesPerPalletLabel;
+
+      const labelPallet = document.getElementById('labelIncPallet');
+      if (labelPallet) labelPallet.textContent = t.addPallet;
+
+      const labelBox = document.getElementById('labelIncBox');
+      if (labelBox) labelBox.textContent = t.addBox;
+
+      const labelUnit1 = document.getElementById('labelIncUnit1');
+      if (labelUnit1) labelUnit1.textContent = t.addUnit;
+
+      const incUnit5 = document.getElementById('incUnit5Btn');
+      if (incUnit5) incUnit5.textContent = t.add5Units;
+
+      const addCustomBtn = document.getElementById('addCustomPalletBtn');
+      if (addCustomBtn) addCustomBtn.textContent = t.addCustomPallet;
+
+      const totalLabel = document.getElementById('totalUnitsLabel');
+      if (totalLabel) totalLabel.textContent = t.totalUnitsLabel;
+
+      const cpTitle = document.getElementById('customPalletTitle');
+      if (cpTitle) cpTitle.textContent = t.customPalletTitle;
+
+      const cpBoxes = document.getElementById('customPalletBoxesInput');
+      if (cpBoxes) cpBoxes.placeholder = t.customPalletPlaceholder;
+
+      const cpCancel = document.getElementById('customPalletCancelBtn');
+      if (cpCancel) cpCancel.textContent = t.cancelBtn;
+
+      const cpSubmit = document.getElementById('customPalletSubmitBtn');
+      if (cpSubmit) cpSubmit.textContent = t.addPalletBtn;
+
+      const actBtn = document.getElementById('activateBtn');
+      if (actBtn) actBtn.textContent = t.activateBtn;
+
+      const lockClose = document.getElementById('closeLockModalBtn') || document.getElementById('lockCloseBtn');
+      if (lockClose) lockClose.textContent = t.closeLockBtn || 'Назад к данным / Back to intake';
+
+      const licInput = document.getElementById('licenseKeyInput');
+      if (licInput) licInput.placeholder = t.licensePlaceholder;
+
+      const copyToast = document.getElementById('copyToast');
+      if (copyToast) copyToast.textContent = t.copyToast;
+
+      // 3) Re-render dynamic elements & tabs
+      renderHeader();
+      renderProductsBar();
+      renderVariantsBar();
+      renderCustomPalletsList();
+      updateTotalDisplay();
+    }
+    window.switchLanguage = switchLanguage;
+
+    // iOS PWA Install Prompt Banner
+    const STORAGE_KEY_IOS_PWA_DISMISSED = 'kladovshik_pwa_banner_dismissed';
+
+    function initIosInstallBanner() {
+      try {
+        const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isStandalone = Boolean(window.navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
+        const isDismissed = localStorage.getItem(STORAGE_KEY_IOS_PWA_DISMISSED) === 'true';
+
+        if (isIos && !isStandalone && !isDismissed) {
+          const banner = document.getElementById('iosInstallBanner');
+          if (banner) {
+            banner.style.display = 'flex';
+          }
+        }
+      } catch (e) {
+        console.warn('iOS PWA banner check failed:', e);
+      }
+    }
+
+    function dismissIosInstallBanner() {
+      try {
+        localStorage.setItem(STORAGE_KEY_IOS_PWA_DISMISSED, 'true');
+      } catch (e) {}
+      const banner = document.getElementById('iosInstallBanner');
+      if (banner) {
+        banner.style.display = 'none';
+      }
+    }
+    window.dismissIosInstallBanner = dismissIosInstallBanner;
+    window.initIosInstallBanner = initIosInstallBanner;
+
+    // Функция инициализации при старте страницы
+    function init() {
+      loadState();
+      renderHeader();
+      renderProductsBar();
+      renderVariantsBar();
+      renderNamesInputs();
+      renderQuants();
+      renderCustomPalletsList();
+      initCounterButtons();
+      initNamesListeners();
+      initActivationListeners();
+      updateTotalDisplay();
+      checkTrialLimit();
+      switchLanguage(state.currentLang || 'en');
+      initIosInstallBanner();
+    }
+
+    const currentDeviceId = initDeviceId();
+    init();
+  </script>
+
+  <!-- Custom Pallet Modal -->
+  <div id="customPalletModal" class="modal-overlay">
+    <div class="modal-card">
+      <div id="customPalletTitle" class="modal-title">Add Custom Pallet</div>
+      <input type="number" id="customPalletBoxesInput" class="modal-input" placeholder="Boxes count (e.g. 8)" min="1" step="1">
+      <div class="modal-actions">
+        <button type="button" id="customPalletCancelBtn" class="btn-modal-cancel" onclick="closeCustomPalletModal()">Cancel</button>
+        <button type="button" id="customPalletSubmitBtn" class="btn-modal-submit" onclick="submitCustomPallet()">Add Pallet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activation & Lock Modal -->
+  <div id="activationModal" class="lock-overlay">
+    <div class="lock-card">
+      <div id="activationTitle" class="lock-title">Free Trial Limit Reached</div>
+      <div id="activationDesc" class="lock-desc">
+        You have completed 15 free intakes. To unlock unlimited access, provide your Device ID to get an activation key.
+      </div>
+      <div id="activationDeviceIdBox" class="device-id-box" title="Tap to copy ID"></div>
+      <div id="copyToast" style="font-size: 12px; color: #81c784; margin-top: -10px; margin-bottom: 12px; display: none;">Copied to clipboard!</div>
+      <input type="text" id="licenseKeyInput" class="license-input" placeholder="PRO-XXXX-XXXX">
+      <div id="licenseFeedback" style="font-size: 13px; margin-bottom: 10px; font-weight: 600;"></div>
+      <button type="button" id="activateBtn" class="btn-activate" onclick="handleActivation()">Activate PRO</button>
+      <a href="https://t.me/KladActivation_bot" id="buyLicenseBtn" target="_blank" class="btn btn-buy">Купить PRO (Безлимит) / Buy License</a>
+
+      <!-- Карточка акции: +2 лимита за друга -->
+      <div class="referral-card">
+        <div class="referral-title">🎁 Нужно больше бесплатных приемок?</div>
+        <div class="referral-subtitle">Поделитесь ссылкой с коллегой и получите +2 лимита за каждую отправку</div>
+        <div class="referral-actions">
+          <button type="button" id="shareTgBtn" class="btn-share btn-share-tg" onclick="shareToTelegram()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+            </svg>
+            <span>В Telegram</span>
+          </button>
+          <button type="button" id="shareMaxBtn" class="btn-share btn-share-max" onclick="shareToMax()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;">
+              <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/>
+            </svg>
+            <span>В MAX</span>
+          </button>
+        </div>
+      </div>
+
+      <button type="button" id="closeLockModalBtn" class="btn btn-lock-cancel" onclick="closeActivationModal()">Назад к данным / Back to intake</button>
+    </div>
+  </div>
+</body>
+</html>

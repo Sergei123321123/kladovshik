@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+bot/node_modules/
+
+# Secrets and environment
+.env
+bot/.env
+
+# Temporary and build artifacts
+www/
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/local.properties
+
+# OS files
+.DS_Store
+Thumbs.db

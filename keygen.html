@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kladovshik — Key Generator (PRO 3-Day)</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='32,3 61,18 32,33 3,18' fill='%234caf50'/%3E%3Cpolygon points='3,18 32,33 32,61 3,46' fill='%232e7d32'/%3E%3Cpolygon points='32,33 61,18 61,46 32,61' fill='%231b5e20'/%3E%3Cpath d='M7 16 C7 14.5 8 13.5 9.5 13.5 L40 13.5 C41.5 13.5 42.5 14.5 43 16 L44 20 L52 21 C54 21.5 55.5 23 56.5 25 L59 30 C59.7 31.5 60 33 60 35 L60 41 C60 42.5 58.5 43.5 57 43.5 L55 43.5 C55 40 52 37.5 48 37.5 C44 37.5 41 40 41 43.5 L24 43.5 C24 40 21 37.5 17 37.5 C13 37.5 10 40 10 43.5 L8.5 43.5 C7 43.5 7 42.5 7 41 Z' fill='%23ffffff'/%3E%3Cpath d='M44 22 L50.5 23 C52 23.5 53 24.5 53.8 26 L55.5 30 L44 30 Z' fill='%23263238'/%3E%3Ccircle cx='17' cy='43.5' r='5.5' fill='%23212121'/%3E%3Ccircle cx='17' cy='43.5' r='2.2' fill='%23eceff1'/%3E%3Ccircle cx='48' cy='43.5' r='5.5' fill='%23212121'/%3E%3Ccircle cx='48' cy='43.5' r='2.2' fill='%23eceff1'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg-page: #121212;
+      --bg-card: #1e1e1e;
+      --bg-input: #262626;
+      --border-color: #333333;
+      --text-main: #f0f0f0;
+      --text-muted: #9e9e9e;
+      --primary: #4caf50;
+      --primary-dark: #2e7d32;
+      --accent: #0288d1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 28px 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .header p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .badge-tag {
+      background: #1b3a24;
+      color: var(--primary);
+      border: 1px solid var(--primary-dark);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #cfd8dc;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      height: 46px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0 14px;
+      color: #ffffff;
+      font-size: 15px;
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary);
+    }
+
+    .btn {
+      width: 100%;
+      height: 48px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:active {
+      transform: scale(0.99);
+    }
+
+    .btn-generate {
+      background: var(--primary-dark);
+      color: #ffffff;
+      margin-top: 6px;
+    }
+
+    .btn-generate:hover {
+      background: #388e3c;
+    }
+
+    .result-section {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+      display: none;
+    }
+
+    .key-display-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .key-display {
+      flex: 1;
+      height: 48px;
+      background: #141414;
+      border: 1px solid #388e3c;
+      border-radius: 8px;
+      padding: 0 12px;
+      color: #a5d6a7;
+      font-size: 17px;
+      font-weight: 700;
+      font-family: monospace;
+      letter-spacing: 1.5px;
+      text-align: center;
+    }
+
+    .btn-copy {
+      min-width: 100px;
+      height: 48px;
+      background: #37474f;
+      color: #ffffff;
+      border: 1px solid #546e7a;
+    }
+
+    .btn-copy:hover {
+      background: #455a64;
+    }
+
+    .details-card {
+      background: #181818;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .detail-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .detail-label {
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      font-weight: 600;
+      color: #e0e0e0;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      background: #2e7d32;
+      color: #ffffff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      display: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+
+    .test-actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      height: 36px;
+      background: #262626;
+      border: 1px solid #444;
+      color: #bbb;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      background: #333;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Kladovshik PRO Keygen <span class="badge-tag">3 DAYS</span></h1>
+      <p>Генератор лицензионных ключей с 72-часовым окном активации</p>
+    </div>
+
+    <div class="form-group">
+      <label for="deviceIdInput">Device ID клиента:</label>
+      <input type="text" id="deviceIdInput" placeholder="KLAD-XXXXXXXX-XXXX" spellcheck="false" autocomplete="off">
+    </div>
+
+    <button type="button" class="btn btn-generate" id="generateBtn" onclick="handleGenerateKey()">
+      Сгенерировать ключ (3 дня)
+    </button>
+
+    <div class="test-actions">
+      <button type="button" class="btn-secondary" onclick="handleGenerateExpiredKey()">
+        Сгенерировать просроченный (тест)
+      </button>
+    </div>
+
+    <div class="result-section" id="resultSection">
+      <label>Лицензионный ключ (PRO-ДАТА-ХЭШ):</label>
+      <div class="key-display-group">
+        <input type="text" id="keyOutput" class="key-display" readonly>
+        <button type="button" class="btn btn-copy" id="copyBtn" onclick="copyKey()">Копировать</button>
+      </div>
+
+      <div class="details-card">
+        <div class="detail-row">
+          <span class="detail-label">Привязка (Device ID):</span>
+          <span class="detail-value" id="detailDeviceId">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Время выпуска:</span>
+          <span class="detail-value" id="detailIssuedAt">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Срок действия окна активации:</span>
+          <span class="detail-value" id="detailExpiresAt" style="color: #81c784;">—</span>
+        </div>
+        <div class="detail-row" style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #282828;">
+          <span class="detail-label">Статус после активации:</span>
+          <span class="detail-value" style="color: #4caf50;">Вечная лицензия (PRO Unlimited)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Ключ скопирован в буфер обмена!</div>
+
+  <script>
+    const LICENSE_SALT = 'KLAD_SALT_2026';
+    const LICENSE_BASE_EPOCH = 1735689600000;
+
+    function computeLicenseHash(deviceId, timeHex) {
+      const cleanId = (deviceId || '').trim().toUpperCase();
+      const raw = `${cleanId}:${timeHex}:${LICENSE_SALT}`;
+      let h = 0x811c9dc5;
+      for (let i = 0; i < raw.length; i++) {
+        h ^= raw.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+      }
+      return (h >>> 0).toString(16).toUpperCase().padStart(8, '0');
+    }
+
+    function generateLicenseKey(deviceId, timestamp = Date.now()) {
+      const cleanId = (deviceId || '').trim().toUpperCase();
+      if (!cleanId) return null;
+      const hours = Math.floor((timestamp - LICENSE_BASE_EPOCH) / (3600 * 1000));
+      const timeHex = (hours & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+      const hashHex = computeLicenseHash(cleanId, timeHex);
+      return `PRO-${timeHex}-${hashHex.slice(0, 4)}-${hashHex.slice(4, 8)}`;
+    }
+
+    function formatDate(ts) {
+      const d = new Date(ts);
+      return d.toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function renderResult(deviceId, timestamp) {
+      const key = generateLicenseKey(deviceId, timestamp);
+      if (!key) {
+        alert('Пожалуйста, введите Device ID клиента');
+        return;
+      }
+
+      document.getElementById('keyOutput').value = key;
+      document.getElementById('detailDeviceId').textContent = deviceId.trim().toUpperCase();
+      document.getElementById('detailIssuedAt').textContent = formatDate(timestamp);
+      
+      const expiryTimestamp = timestamp + (72 * 3600 * 1000);
+      const isExpired = (Date.now() - timestamp) > (72 * 3600 * 1000);
+      const expiryEl = document.getElementById('detailExpiresAt');
+      expiryEl.textContent = formatDate(expiryTimestamp) + (isExpired ? ' (ИСТЕК)' : ' (72 часа)');
+      expiryEl.style.color = isExpired ? '#ff5252' : '#81c784';
+
+      document.getElementById('resultSection').style.display = 'block';
+    }
+
+    function handleGenerateKey() {
+      const devInput = document.getElementById('deviceIdInput');
+      const devId = (devInput.value || '').trim().toUpperCase();
+      if (!devId) {
+        alert('Введите Device ID клиента (например, скопированный из приложения)');
+        devInput.focus();
+        return;
+      }
+      renderResult(devId, Date.now());
+    }
+
+    function handleGenerateExpiredKey() {
+      const devInput = document.getElementById('deviceIdInput');
+      const devId = (devInput.value || '').trim().toUpperCase();
+      if (!devId) {
+        alert('Введите Device ID клиента');
+        devInput.focus();
+        return;
+      }
+      // 4 days in past
+      const past = Date.now() - (4 * 24 * 3600 * 1000);
+      renderResult(devId, past);
+    }
+
+    function copyKey() {
+      const keyOutput = document.getElementById('keyOutput');
+      if (!keyOutput || !keyOutput.value) return;
+
+      navigator.clipboard.writeText(keyOutput.value).then(() => {
+        showToast('Ключ скопирован в буфер обмена!');
+      }).catch(() => {
+        keyOutput.select();
+        document.execCommand('copy');
+        showToast('Ключ скопирован в буфер обмена!');
+      });
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => {
+        t.style.display = 'none';
+      }, 2500);
+    }
+
+    // Auto-uppercase on input
+    document.getElementById('deviceIdInput').addEventListener('input', (e) => {
+      e.target.value = e.target.value.toUpperCase();
+    });
+  </script>
+</body>
+</html>
