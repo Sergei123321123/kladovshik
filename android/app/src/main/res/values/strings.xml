@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Кладовщик</string>
-    <string name="title_activity_main">Кладовщик</string>
+    <string name="app_name">PriemTovara</string>
+    <string name="title_activity_main">PriemTovara</string>
     <string name="package_name">com.kladovshik.app</string>
     <string name="custom_url_scheme">com.kladovshik.app</string>
 </resources>

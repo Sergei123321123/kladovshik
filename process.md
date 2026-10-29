@@ -63,11 +63,13 @@
 49. [x] Обновление JDK до 21 в CI (Шаг 49): в `.github/workflows/build.yml` параметр `java-version` обновлен с 17 до 21 (`actions/setup-java@v4`, дистрибутив `temurin`) для совместимости с исходным кодом Capacitor 8. verify.ps1 пройден.
 50. [x] Успешная облачная компиляция APK в GitHub Actions: запуск RUN_ID: 40866875257 успешно завершен (`conclusion: success`). Скомпилирован и загружен артефакт `app-debug` (4 119 405 байт). Облачный пайплайн сборки Android APK на Capacitor 8 полностью стабилизирован. verify.ps1 пройден.
 51. [x] Выгрузка и локальная верификация APK-артефакта: создана папка `release/`, через GitHub API скачан архив `app-debug.zip` и распакован в `release/app-debug.apk` (4 482 926 байт / 4.28 МБ). Структура DEX и веб-ассеты внутри APK верифицированы. Папка `release/` исключена из git через `.gitignore`. verify.ps1 пройден.
+52. [x] Ребрендинг в PriemTovara и генерация нативных иконок Android: обновлено имя приложения на "PriemTovara" в `capacitor.config.json`, `android/app/src/main/res/values/strings.xml` и `index.html`. На основе векторной геометрии фавикона (складской 3D-куб с фургоном) сгенерированы растровые иконки `ic_launcher.png`, `ic_launcher_round.png` и `ic_launcher_foreground.png` для всех плотностей mipmap (mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi). Атрибуты `android:icon` и `android:roundIcon` в `AndroidManifest.xml` активны. verify.ps1 пройден.
 
 ## Следующие шаги
 - Микро-шаг 4.3: публикация обновленного двухшагового Mini App на GitHub Pages (`git commit`, `git push`).
 - Интеграция кнопки запуска Mini App в клавиатуру Telegram-бота (`bot/bot.js`).
 - Подготовка релизной сборки (Release APK / AAB) и подписи для Google Play.
+
 
 
 
