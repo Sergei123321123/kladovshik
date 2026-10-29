@@ -599,6 +599,31 @@
       transform: scale(0.98);
     }
 
+    /* [AUTONOMOUS DIAGNOSTIC COPY LOGS BUTTON STYLES] */
+    .btn-copy-logs {
+      width: 100%;
+      min-height: 40px;
+      background: #1e1e1e;
+      color: #90caf9;
+      border: 1px dashed #42a5f5;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      margin-top: 2px;
+      transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-copy-logs:active {
+      background: #2a3b4c;
+      transform: scale(0.98);
+    }
+
     /* App Notification Toast */
     .app-toast {
       position: fixed;
@@ -1127,6 +1152,52 @@
   </footer>
 
   <script>
+    /* === [AUTONOMOUS DIAGNOSTIC LOGS COLLECTOR START] === */
+    window.__appLogs = window.__appLogs || [];
+    (function() {
+      function getTS() {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return `[${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}]`;
+      }
+      function formatArgs(args) {
+        return Array.from(args).map((arg) => {
+          if (arg instanceof Error) return arg.stack || `${arg.name}: ${arg.message}` || String(arg);
+          if (typeof arg === 'object' && arg !== null) {
+            try { return JSON.stringify(arg); } catch (e) { return String(arg); }
+          }
+          return String(arg);
+        }).join(' ');
+      }
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = function(...args) {
+        window.__appLogs.push(`${getTS()} ${formatArgs(args)}`);
+        if (origLog) origLog.apply(console, args);
+      };
+      console.error = function(...args) {
+        window.__appLogs.push(`${getTS()} [ERROR] ${formatArgs(args)}`);
+        if (origError) origError.apply(console, args);
+      };
+      if (origWarn) {
+        console.warn = function(...args) {
+          window.__appLogs.push(`${getTS()} [WARN] ${formatArgs(args)}`);
+          origWarn.apply(console, args);
+        };
+      }
+      window.onerror = function(msg, url, line, col, error) {
+        const errDetails = error ? (error.stack || `${error.name}: ${error.message}`) : msg;
+        window.__appLogs.push(`${getTS()} [ONERROR] ${errDetails} at ${url}:${line}:${col}`);
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        const reason = event.reason ? (event.reason.stack || event.reason.message || String(event.reason)) : 'Promise Rejection';
+        window.__appLogs.push(`${getTS()} [REJECTION] ${reason}`);
+      });
+      console.log('PriemTovara Logger initialized. UserAgent: ' + (navigator.userAgent || 'unknown'));
+    })();
+    /* === [AUTONOMOUS DIAGNOSTIC LOGS COLLECTOR END] === */
+
     // Theme palette definition
     const PRODUCT_THEMES = ['theme-blue', 'theme-green', 'theme-purple', 'theme-amber', 'theme-red'];
 
@@ -2480,8 +2551,10 @@
         lastGeneratedWb = wb;
         lastGeneratedFilename = filename;
         lastGeneratedReportFile = file;
+        console.log(`[XLSX] Успешная сборка книги: "${filename}". Размер Blob: ${blob.size} байт, Размер File: ${file.size} байт`);
       } catch (err) {
-        console.error('Export error preparing file:', err);
+        const errDetails = err ? (err.stack || `${err.name}: ${err.message}` || String(err)) : 'Unknown error';
+        console.error('[XLSX] Ошибка при формировании файла: ' + errDetails);
         alert('Ошибка при формировании Excel: ' + err.message);
         return;
       }
@@ -2526,6 +2599,7 @@
     async function shareReportFile() {
       try {
         if (!lastGeneratedReportFile || !lastGeneratedFilename) {
+          console.log('[XLSX Share] Файл не найден, запуск generateExcelReport()...');
           generateExcelReport();
         }
 
@@ -2533,29 +2607,45 @@
         const filename = lastGeneratedFilename || 'Intake_Report.xlsx';
 
         if (!file) {
+          console.error('[XLSX Share] Ошибка: объект file отсутствует');
           alert('Не удалось сформировать файл отчета');
           return;
         }
 
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        let canShareFiles = false;
+        try {
+          canShareFiles = Boolean(navigator.canShare && navigator.canShare({ files: [file] }));
+        } catch (csErr) {
+          console.warn('[XLSX Share] Ошибка проверки navigator.canShare: ' + (csErr ? (csErr.message || csErr) : csErr));
+        }
+
+        console.log(`[XLSX Share] Проверка перед отправкой: navigator.canShare({ files: [file] }) = ${canShareFiles}; размер файла = ${file.size} байт; navigator.share = ${Boolean(navigator.share)}`);
+
+        if (canShareFiles) {
+          console.log('[XLSX Share] Старт navigator.share({ files: [file] })...');
           await navigator.share({
             files: [file],
             title: filename,
             text: 'Ведомость приемки ' + filename
           });
+          console.log('[XLSX Share] navigator.share с файлом успешно завершен');
         } else if (navigator.share) {
+          console.log('[XLSX Share] Файловый шаринг не поддержан (canShare=false). Старт navigator.share (текст)...');
           await navigator.share({
             title: filename,
             text: 'Ведомость приемки ' + filename
           });
+          console.log('[XLSX Share] navigator.share (текст) успешно завершен');
         } else {
+          console.log('[XLSX Share] navigator.share отсутствует, переходим к saveReportFileLocally()');
           saveReportFileLocally();
         }
       } catch (err) {
         if (err && err.name === 'AbortError') {
-          console.log('Share dismissed by user');
+          console.log('[XLSX Share] Пользователь отменил диалог отправки (AbortError)');
         } else {
-          console.error('Share error:', err);
+          const errDetails = err ? (err.stack || `${err.name}: ${err.message}` || String(err)) : 'Unknown share error';
+          console.error('[XLSX Share] Точный текст ошибки navigator.share: ' + errDetails);
           saveReportFileLocally();
         }
       }
@@ -2563,19 +2653,70 @@
 
     function saveReportFileLocally() {
       try {
+        console.log('[XLSX Save] Старт локального сохранения файла...');
         if (!lastGeneratedWb) {
           generateExcelReport();
         }
 
         if (lastGeneratedWb && lastGeneratedFilename) {
           XLSX.writeFile(lastGeneratedWb, lastGeneratedFilename, { bookType: 'xlsx', compression: true });
+          console.log(`[XLSX Save] XLSX.writeFile успешно выполнен для "${lastGeneratedFilename}"`);
           showExportToast(state.currentLang === 'ru' ? 'Файл сохранен на устройство' : 'File saved to device');
         }
       } catch (err) {
-        console.error('Save locally error:', err);
+        const errDetails = err ? (err.stack || `${err.name}: ${err.message}` || String(err)) : 'Unknown save error';
+        console.error('[XLSX Save] Точный текст ошибки при сохранении: ' + errDetails);
         alert('Ошибка при сохранении Excel: ' + err.message);
       }
     }
+
+    /* === [AUTONOMOUS DIAGNOSTIC COPY LOGS FUNCTION START] === */
+    function copyAppLogs() {
+      const logs = (window.__appLogs && window.__appLogs.length > 0)
+        ? window.__appLogs.join('\n')
+        : '[No logs recorded yet]';
+
+      function onSuccess() {
+        alert('Логи скопированы в буфер! Вставьте их в чат Telegram.');
+      }
+
+      function fallbackCopy(text) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          ta.style.top = '-9999px';
+          ta.setAttribute('readonly', '');
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          const successful = document.execCommand('copy');
+          document.body.removeChild(ta);
+          if (successful) {
+            onSuccess();
+          } else {
+            prompt('Не удалось скопировать автоматически. Скопируйте логи вручную:', text);
+          }
+        } catch (e) {
+          console.error('Fallback copy error:', e);
+          prompt('Скопируйте логи вручную:', text);
+        }
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(logs)
+          .then(onSuccess)
+          .catch((err) => {
+            console.warn('Clipboard API error, trying fallback:', err);
+            fallbackCopy(logs);
+          });
+      } else {
+        fallbackCopy(logs);
+      }
+    }
+    window.copyAppLogs = copyAppLogs;
+    /* === [AUTONOMOUS DIAGNOSTIC COPY LOGS FUNCTION END] === */
 
     window.openShareReportModal = openShareReportModal;
     window.closeShareReportModal = closeShareReportModal;
@@ -2820,6 +2961,8 @@
           </svg>
           <span id="saveReportLocalBtnText">Сохранить на устройство</span>
         </button>
+        <!-- [AUTONOMOUS DIAGNOSTIC COPY LOGS BUTTON] -->
+        <button type="button" id="copyLogsBtn" class="btn-copy-logs" onclick="copyAppLogs()">📋 Скопировать логи</button>
       </div>
     </div>
   </div>
