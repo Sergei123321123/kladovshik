@@ -57,12 +57,15 @@
 43. [x] Устранение ошибки облачной сборки (Шаг 5): в `.github/workflows/build.yml` добавлены шаги `actions/setup-node@v4` (Node.js 20) и `npm install` перед шагом сборки Gradle для развертывания модуля `@capacitor/android`. Удален раздельный журнал Гемини, журнал ведется строго в `process.md`. verify.ps1 пройден.
 44. [x] Проверка статуса сборки с Node.js: RUN_ID: 40860835597 завершился с `failure` на шаге `Build Debug APK`. Лог ошибки: `Could not read script .../android/capacitor-cordova-android-plugins/cordova.variables.gradle as it does not exist`. Причина: плагины Cordova/Capacitor генерируются командой `npx cap sync android`, которая отсутствует перед сборкой Gradle. verify.ps1 пройден.
 45. [x] Добавление синхронизации Capacitor в CI: в `.github/workflows/build.yml` добавлен запуск `npx cap sync android` сразу после установки зависимостей, в `package.json` добавлен хук `postinstall: "npm run build"`. Журнал ведется строго по системе Harness в `process.md`. verify.ps1 пройден.
+46. [x] Проверка статуса сборки с синхронизацией Capacitor: RUN_ID: 40861825891 завершился с `failure` на шаге `Install dependencies and sync Capacitor`. Лог: `[fatal] The Capacitor CLI requires NodeJS >=22.0.0`. Причина: для Capacitor CLI 8 требуется Node.js 22+. verify.ps1 пройден.
 
 ## Следующие шаги
+- Обновление `node-version` до 22 в `.github/workflows/build.yml`.
 - Проверка результатов обновленной облачной сборки APK в GitHub Actions и скачивание артефакта `app-debug.apk`.
 - Микро-шаг 4.3: публикация обновленного двухшагового Mini App на GitHub Pages (`git commit`, `git push`).
 - Интеграция кнопки запуска Mini App в клавиатуру Telegram-бота (`bot/bot.js`).
 - Подготовка сборки APK/AAB для Google Play.
+
 
 
 
