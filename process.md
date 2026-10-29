@@ -59,12 +59,15 @@
 45. [x] Добавление синхронизации Capacitor в CI: в `.github/workflows/build.yml` добавлен запуск `npx cap sync android` сразу после установки зависимостей, в `package.json` добавлен хук `postinstall: "npm run build"`. Журнал ведется строго по системе Harness в `process.md`. verify.ps1 пройден.
 46. [x] Проверка статуса сборки с синхронизацией Capacitor: RUN_ID: 40861825891 завершился с `failure` на шаге `Install dependencies and sync Capacitor`. Лог: `[fatal] The Capacitor CLI requires NodeJS >=22.0.0`. Причина: для Capacitor CLI 8 требуется Node.js 22+. verify.ps1 пройден.
 47. [x] Повышение версии Node.js в CI до 22: в `.github/workflows/build.yml` параметр `node-version` обновлен до 22 для удовлетворения требований Capacitor CLI 8 (`@capacitor/cli: ^8.5.3`). verify.ps1 пройден.
+48. [x] Проверка статуса сборки на Node.js 22: RUN_ID: 40863403106 завершился с `failure` на шаге `Build Debug APK`. Шаг синхронизации Capacitor успешно пройден. Ошибка сборки: `error: invalid source release: 21` при компиляции `:capacitor-android`. Причина: Capacitor 8 скомпилирован под Java 21, а в CI был установлен JDK 17. verify.ps1 пройден.
 
 ## Следующие шаги
+- Обновление JDK до 21 (`java-version: '21'`) в `.github/workflows/build.yml`.
 - Проверка результатов обновленной облачной сборки APK в GitHub Actions и скачивание артефакта `app-debug.apk`.
 - Микро-шаг 4.3: публикация обновленного двухшагового Mini App на GitHub Pages (`git commit`, `git push`).
 - Интеграция кнопки запуска Mini App в клавиатуру Telegram-бота (`bot/bot.js`).
 - Подготовка сборки APK/AAB для Google Play.
+
 
 
 
