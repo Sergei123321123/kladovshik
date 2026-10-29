@@ -56,12 +56,13 @@
 42. [x] Фиксация изменений и отправка кода на GitHub: создан корневой `.gitignore` (исключены node_modules, секреты bot/.env, build-кэши), создан публичный репозиторий `Sergei123321123/kladovshik` на GitHub, инициализирован git (`main`), выполнен коммит `feat: setup android capacitor and github actions build` и успешный пуш `git push -u origin main`. Автоматически запущен workflow GitHub Actions для облачной сборки APK. verify.ps1 пройден.
 43. [x] Устранение ошибки облачной сборки (Шаг 5): в `.github/workflows/build.yml` добавлены шаги `actions/setup-node@v4` (Node.js 20) и `npm install` перед шагом сборки Gradle для развертывания модуля `@capacitor/android`. Удален раздельный журнал Гемини, журнал ведется строго в `process.md`. verify.ps1 пройден.
 44. [x] Проверка статуса сборки с Node.js: RUN_ID: 40860835597 завершился с `failure` на шаге `Build Debug APK`. Лог ошибки: `Could not read script .../android/capacitor-cordova-android-plugins/cordova.variables.gradle as it does not exist`. Причина: плагины Cordova/Capacitor генерируются командой `npx cap sync android`, которая отсутствует перед сборкой Gradle. verify.ps1 пройден.
+45. [x] Добавление синхронизации Capacitor в CI: в `.github/workflows/build.yml` добавлен запуск `npx cap sync android` сразу после установки зависимостей, в `package.json` добавлен хук `postinstall: "npm run build"`. Журнал ведется строго по системе Harness в `process.md`. verify.ps1 пройден.
 
 ## Следующие шаги
-- Добавление `npm run build` и `npx cap sync android` в workflow перед сборкой Gradle.
 - Проверка результатов обновленной облачной сборки APK в GitHub Actions и скачивание артефакта `app-debug.apk`.
 - Микро-шаг 4.3: публикация обновленного двухшагового Mini App на GitHub Pages (`git commit`, `git push`).
 - Интеграция кнопки запуска Mini App в клавиатуру Telegram-бота (`bot/bot.js`).
 - Подготовка сборки APK/AAB для Google Play.
+
 
 

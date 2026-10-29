@@ -5,6 +5,7 @@
   "main": "xlsx.full.min.js",
   "scripts": {
     "build": "node -e \"const fs=require('fs'); fs.mkdirSync('www',{recursive:true}); fs.copyFileSync('index.html','www/index.html'); fs.copyFileSync('xlsx.full.min.js','www/xlsx.full.min.js');\"",
+    "postinstall": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
