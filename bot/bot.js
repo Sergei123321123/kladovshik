@@ -66,13 +66,14 @@ function getWelcomeMessage(firstName = 'Пользователь') {
 // Текст инструкции
 function getInstructionMessage() {
   return (
-    `📖 *Инструкция по активации PRO-версии:*\n\n` +
-    `1. Откройте приложение *«Кладовщик»* на смартфоне или в браузере.\n` +
-    `2. Нажмите на бейдж лицензии в верхней панели (например, *Demo: 0/15*).\n` +
+    `📖 *Инструкция по покупке и активации PRO-версии:*\n\n` +
+    `1. Откройте приложение *«PriemTovara / Кладовщик»* на смартфоне или в браузере.\n` +
+    `2. Нажмите на бейдж лицензии в верхней панели (*Demo: 0/15*).\n` +
     `3. В открывшемся окне нажмите на блок с вашим *Device ID*, чтобы скопировать его.\n` +
-    `4. Вернитесь в этот бот, нажмите кнопку *«🔑 Активировать приложение»* и отправьте скопированный ID.\n` +
-    `5. Бот пришлет вам ключ активации.\n` +
-    `6. Вставьте ключ в поле ввода в приложении и нажмите *«Активировать PRO»*.\n\n` +
+    `4. Пришлите скопированный *Device ID* в этот бот или нажмите *«🔑 Активировать приложение»*.\n` +
+    `5. Бот выставит официальный счет Telegram Stars (тестовая цена: ${PRO_STARS_PRICE} ⭐).\n` +
+    `6. После оплаты бот моментально сгенерирует и пришлет ваш персональный ключ PRO.\n` +
+    `7. Вставьте ключ в поле ввода в приложении и нажмите *«Активировать PRO»*.\n\n` +
     `✨ Лицензия активируется навсегда для вашего устройства!`
   );
 }
@@ -83,14 +84,26 @@ function getPromptDeviceMessage() {
     `📱 *Отправьте ваш Device ID из приложения*\n\n` +
     `Он выглядит следующим образом:\n` +
     `\`KLAD-XXXXXXXX-XXXX\`\n\n` +
-    `_Просто скопируйте его из окна активации приложения и пришлите ответным сообщением в этот чат._`
+    `_Просто скопируйте его из окна активации приложения и пришлите ответным сообщением. Бот выставит тестовый счет на ${PRO_STARS_PRICE} ⭐ (Telegram Stars) и после оплаты выдаст бессрочный PRO-ключ!_`
   );
 }
 
 // Обработка команды /start
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
   const chatId = msg.chat.id;
   const name = msg.from ? (msg.from.first_name || 'Пользователь') : 'Пользователь';
+  const rawParam = match && match[1] ? match[1].trim() : '';
+  const deviceId = parseDeviceId(rawParam);
+
+  if (deviceId) {
+    try {
+      await sendStarsInvoice(chatId, deviceId);
+      return;
+    } catch (err) {
+      console.error('Ошибка при отправке инвойса Stars из /start:', err);
+    }
+  }
+
   bot.sendMessage(chatId, getWelcomeMessage(name), {
     parse_mode: 'Markdown',
     ...MAIN_KEYBOARD
@@ -110,7 +123,7 @@ bot.onText(/\/help/, (msg) => {
 // ОПЛАТА ТАРИФА PRO ЧЕРЕЗ TELEGRAM STARS (XTR)
 // ============================================================
 
-const PRO_STARS_PRICE = 250; // 250 Stars (~5 $)
+const PRO_STARS_PRICE = 1; // 1 Star (Тестовая символическая оплата)
 
 /**
  * Отправка инвойса Telegram Stars по запросу пользователя с Device ID
@@ -250,7 +263,7 @@ bot.onText(/\/(?:stars|buy)(?:\s+(.+))?/, async (msg, match) => {
 });
 
 // Обработка текстовых сообщений
-bot.on('message', (msg) => {
+bot.on('message', async (msg) => {
   // Проверка успешной оплаты в потоке сообщений
   if (msg.successful_payment) {
     handleSuccessfulPayment(msg);
@@ -286,24 +299,16 @@ bot.on('message', (msg) => {
   const deviceId = parseDeviceId(text);
 
   if (deviceId) {
-    const now = Date.now();
-    const licenseKey = generateLicenseKey(deviceId, now);
-    const expiryDate = formatDate(now + 72 * 3600 * 1000);
-
-    const reply = (
-      `🎉 *Ваш ключ лицензии PRO готов!*\n\n` +
-      `\`${licenseKey}\`\n\n` +
-      `📋 _(Нажмите на ключ выше, чтобы скопировать его)_\n\n` +
-      `📱 *Привязка к устройству:* \`${deviceId}\`\n` +
-      `⏳ *Срок действия:* ключ действует 3 дня на активацию (до ${expiryDate}). Скопируйте и вставьте в приложении.\n\n` +
-      `⭐ *После активации:* лицензия PRO Unlimited закрепляется за вами навсегда!\n\n` +
-      `💡 _Также доступна оплата через Telegram Stars (250 ⭐): команда \`/stars ${deviceId}\`_`
-    );
-
-    bot.sendMessage(chatId, reply, {
-      parse_mode: 'Markdown',
-      ...MAIN_KEYBOARD
-    });
+    try {
+      await sendStarsInvoice(chatId, deviceId);
+    } catch (err) {
+      console.error('Ошибка при отправке инвойса Stars на Device ID:', err);
+      bot.sendMessage(
+        chatId,
+        '❌ Не удалось выставить счет Telegram Stars. Пожалуйста, попробуйте еще раз позже или обратитесь в поддержку.',
+        MAIN_KEYBOARD
+      );
+    }
   } else {
     // Пользователь прислал непонятный текст
     bot.sendMessage(

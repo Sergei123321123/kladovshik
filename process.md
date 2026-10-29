@@ -67,10 +67,11 @@
 53. [x] Адаптация интерфейса под мобильный экран и защита реферальной программы: кнопка экспорта переименована в «XLSX» (в разметке и TRANSLATIONS для en/ru). Добавлен верхний отступ для блока названия приемки (`#sessionTitle` / `.session-bar`) с учетом safe-area-inset-top. Рабочему контейнеру `#counterSection` задан `padding-bottom: 100px` для свободной прокрутки кнопки нестандартного поддона над `#stickyFooter`. В `shareToMax` адрес обновлен на `https://max.ru/`. Внедрена защита от накрутки через флаги `kladovshik_bonus_tg_claimed` и `kladovshik_bonus_max_claimed` (бонус начисляется только один раз за каждый мессенджер, при повторах выдается предупреждение). Выполнен `npm run build`, `verify.ps1` пройден.
 54. [x] Модальное окно отправки отчета XLSX с сохранением Email: в `index.html` добавлено модальное окно `#shareReportModal` с кнопкой «Telegram» (Web Share API / прямая ссылка), «MAX» (переход на https://max.ru/), блоком Email (`#reportEmailInput`, автозаполнение/сохранение в `localStorage['priem_user_email']`, формирование `mailto:` с темой «Отчет приемки: <Имя>» и кратким телом с итогами) и кнопкой закрытия «✕». В `generateExcelReport()` после успешного создания файла открывается окно `#shareReportModal` без alert(). Выполнен `npm run build`, `verify.ps1` пройден.
 55. [x] Внедрение функций сброса PRO-статуса и демо-данных: в `index.html` добавлены функции `resetPro()` (полная очистка флагов лицензии `'kladovshik_pro_license'`, `'kladovshik_license_key'`, `'kladovshik_license_activated'` с перезагрузкой) и `resetDemo()` (сброс счетчиков приемок и реферальных бонусов) для быстрого тестирования через консоль F12. Выполнен `npm run build`, `verify.ps1` пройден.
+56. [x] Закрытие бесплатной выдачи PRO и настройка тестовой оплаты 1 Star: в `bot/bot.js` установлена тестовая цена `PRO_STARS_PRICE = 1;`, исключена бесплатная выдача ключа при отправке Device ID (выставляется инвойс `sendStarsInvoice` на 1 XTR, генерация ключа происходит исключительно в `successful_payment`). В `miniapp/index.html` закрыта выдача ключа без оплаты, настроена переадресация в бот для оплаты Stars. Проверено `node --check bot/bot.js`, изменения в `miniapp` отправлены, `verify.ps1` пройден.
 
 ## Следующие шаги
-- Микро-шаг 4.3: публикация обновленного двухшагового Mini App на GitHub Pages (`git commit`, `git push`).
 - Интеграция кнопки запуска Mini App в клавиатуру Telegram-бота (`bot/bot.js`).
+- Тестирование сквозного процесса покупки через Telegram Stars в тестовом режиме.
 - Подготовка релизной сборки (Release APK / AAB) и подписи для Google Play.
 
 
