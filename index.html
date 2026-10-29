@@ -497,6 +497,108 @@
       background: #222;
     }
 
+    /* Share Report Modal */
+    .share-report-card {
+      max-width: 400px;
+      position: relative;
+    }
+
+    .share-report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .share-report-header .modal-title {
+      margin-bottom: 0;
+      text-align: left;
+    }
+
+    .btn-modal-close {
+      background: transparent;
+      border: none;
+      color: #aaa;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      min-height: 36px;
+      min-width: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .btn-modal-close:active {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .share-report-desc {
+      font-size: 14px;
+      color: #bbb;
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+
+    .share-report-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .share-email-block {
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .share-email-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #ccc;
+      margin-bottom: 8px;
+    }
+
+    .share-email-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .share-email-input {
+      flex: 1;
+      min-height: 44px;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: left;
+      padding: 0 12px;
+      margin-bottom: 0;
+    }
+
+    .btn-send-email {
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0 16px;
+      min-height: 44px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 0.15s ease;
+    }
+
+    .btn-send-email:active {
+      background: #1565c0;
+    }
+
     /* App Notification Toast */
     .app-toast {
       position: fixed;
@@ -1118,7 +1220,11 @@
         licenseExpired: 'Key expired (3 days limit)',
         proUnlimitedBadge: 'PRO Unlimited',
         demoBadge: (count, limit) => `Demo: ${count}/${limit || 15}`,
-        exportToast: 'Excel report downloaded!'
+        exportToast: 'Excel report downloaded!',
+        shareReportTitle: 'Share Report',
+        shareReportDesc: 'Excel XLSX report has been saved to your device. Choose how to share it:',
+        shareReportEmailLabel: 'Send via Email:',
+        shareReportEmailBtn: 'Send Email'
       },
       ru: {
         exportBtn: 'XLSX',
@@ -1159,7 +1265,11 @@
         licenseExpired: 'Срок действия ключа для активации истек (3 дня)',
         proUnlimitedBadge: 'PRO Безлимит',
         demoBadge: (count, limit) => `Демо: ${count}/${limit || 15}`,
-        exportToast: 'Отчет Excel успешно сформирован!'
+        exportToast: 'Отчет Excel успешно сформирован!',
+        shareReportTitle: 'Отправить отчет',
+        shareReportDesc: 'Файл отчета XLSX сохранен на устройство. Выберите способ отправки:',
+        shareReportEmailLabel: 'Отправить на Email:',
+        shareReportEmailBtn: 'На почту'
       }
     };
 
@@ -2318,6 +2428,8 @@
       } catch (e) {
         console.warn('Trial increment error:', e);
       }
+
+      openShareReportModal();
       } finally {
         setTimeout(() => {
           isExporting = false;
@@ -2325,6 +2437,91 @@
       }
     }
     window.generateExcelReport = generateExcelReport;
+
+    // Share Report Modal Functions
+    function openShareReportModal() {
+      const modal = document.getElementById('shareReportModal');
+      if (!modal) return;
+
+      const emailInput = document.getElementById('reportEmailInput');
+      if (emailInput) {
+        try {
+          emailInput.value = localStorage.getItem('priem_user_email') || '';
+        } catch (e) {}
+      }
+
+      modal.classList.add('open');
+    }
+
+    function closeShareReportModal() {
+      const modal = document.getElementById('shareReportModal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    function getReportSummaryText() {
+      const sessionName = (state.session && state.session.name ? state.session.name : 'Приемка').trim();
+      const dateStr = new Date().toLocaleDateString('ru-RU');
+      let totalUnits = 0;
+      let totalBoxes = 0;
+      let totalPallets = 0;
+
+      if (Array.isArray(state.products)) {
+        state.products.forEach(p => {
+          if (Array.isArray(p.variants)) {
+            p.variants.forEach(v => {
+              const res = calculateVariantTotals(v, p);
+              totalUnits += res.totalUnits;
+              totalBoxes += res.totalBoxes;
+              totalPallets += (parseInt(v.stdPallets, 10) || 0) + (Array.isArray(v.customPallets) ? v.customPallets.length : 0);
+            });
+          }
+        });
+      }
+      return { sessionName, dateStr, totalUnits, totalBoxes, totalPallets };
+    }
+
+    function shareReportTelegram() {
+      const s = getReportSummaryText();
+      const text = `Отчет приемки: ${s.sessionName}\nДата: ${s.dateStr}\nВсего паллет: ${s.totalPallets}\nВсего ящиков: ${s.totalBoxes}\nИТОГО: ${s.totalUnits} шт.\n(Файл XLSX сохранен на устройстве)`;
+      
+      if (navigator.share) {
+        navigator.share({
+          title: `Отчет: ${s.sessionName}`,
+          text: text
+        }).catch(e => console.log('Share dismissed:', e));
+      } else {
+        const url = `https://t.me/share/url?url=${encodeURIComponent('https://t.me/KladActivation_bot')}&text=${encodeURIComponent(text)}`;
+        window.open(url, '_blank');
+      }
+    }
+
+    function shareReportMax() {
+      window.open('https://max.ru/', '_blank');
+    }
+
+    function sendReportEmail() {
+      const emailInput = document.getElementById('reportEmailInput');
+      const email = emailInput ? emailInput.value.trim() : '';
+
+      if (email) {
+        try {
+          localStorage.setItem('priem_user_email', email);
+        } catch (e) {}
+      }
+
+      const s = getReportSummaryText();
+      const subject = `Отчет приемки: ${s.sessionName}`;
+      const body = `Здравствуйте!\n\nОтчет по приемке: ${s.sessionName}\nДата: ${s.dateStr}\nВсего паллет: ${s.totalPallets}\nВсего ящиков: ${s.totalBoxes}\nИТОГО ШТУК: ${s.totalUnits}\n\nФайл ведомости XLSX сохранен на устройстве.`;
+      const mailtoUrl = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+      window.location.href = mailtoUrl;
+    }
+
+    window.openShareReportModal = openShareReportModal;
+    window.closeShareReportModal = closeShareReportModal;
+    window.shareReportTelegram = shareReportTelegram;
+    window.shareReportMax = shareReportMax;
+    window.sendReportEmail = sendReportEmail;
 
     // Localization switcher
     function switchLanguage(lang) {
@@ -2407,6 +2604,15 @@
 
       const copyToast = document.getElementById('copyToast');
       if (copyToast) copyToast.textContent = t.copyToast;
+
+      const shareTitle = document.getElementById('shareReportTitle');
+      if (shareTitle) shareTitle.textContent = t.shareReportTitle || 'Отправить отчет';
+      const shareDesc = document.getElementById('shareReportDesc');
+      if (shareDesc) shareDesc.textContent = t.shareReportDesc || 'Файл отчета XLSX сохранен на устройство. Выберите способ отправки:';
+      const emailLabel = document.getElementById('shareReportEmailLabel');
+      if (emailLabel) emailLabel.textContent = t.shareReportEmailLabel || 'Отправить на Email:';
+      const sendEmailBtn = document.getElementById('sendReportEmailBtn');
+      if (sendEmailBtn) sendEmailBtn.textContent = t.shareReportEmailBtn || 'На почту';
 
       // 3) Re-render dynamic elements & tabs
       renderHeader();
@@ -2518,6 +2724,40 @@
       </div>
 
       <button type="button" id="closeLockModalBtn" class="btn btn-lock-cancel" onclick="closeActivationModal()">Назад к данным / Back to intake</button>
+    </div>
+  </div>
+
+  <!-- Share Report Modal -->
+  <div id="shareReportModal" class="modal-overlay">
+    <div class="modal-card share-report-card">
+      <div class="share-report-header">
+        <div id="shareReportTitle" class="modal-title">Отправить отчет</div>
+        <button type="button" class="btn-modal-close" onclick="closeShareReportModal()" title="Закрыть">✕</button>
+      </div>
+      <div id="shareReportDesc" class="share-report-desc">
+        Файл отчета XLSX сохранен на устройство. Выберите способ отправки:
+      </div>
+      <div class="share-report-buttons">
+        <button type="button" id="shareReportTgBtn" class="btn-share btn-share-tg" onclick="shareReportTelegram()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+          </svg>
+          <span>Telegram</span>
+        </button>
+        <button type="button" id="shareReportMaxBtn" class="btn-share btn-share-max" onclick="shareReportMax()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;">
+            <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/>
+          </svg>
+          <span>MAX</span>
+        </button>
+      </div>
+      <div class="share-email-block">
+        <label for="reportEmailInput" id="shareReportEmailLabel" class="share-email-label">Отправить на Email:</label>
+        <div class="share-email-row">
+          <input type="email" id="reportEmailInput" placeholder="name@company.ru" class="modal-input share-email-input">
+          <button type="button" id="sendReportEmailBtn" class="btn btn-send-email" onclick="sendReportEmail()">На почту</button>
+        </div>
+      </div>
     </div>
   </div>
 </body>
