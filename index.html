@@ -2340,7 +2340,8 @@
     }
 
     let isExporting = false;
-    function generateExcelReport() {
+    let lastGeneratedReportFile = null;
+    async function generateExcelReport() {
       if (isExporting) return;
       if (typeof XLSX === 'undefined') {
         alert('SheetJS library is loading or unavailable.');
@@ -2472,11 +2473,32 @@
       const filename = `${cleanName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
       try {
-        XLSX.writeFile(wb, filename, { bookType: 'xlsx', compression: true });
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        lastGeneratedReportFile = file;
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: filename,
+            text: 'Ведомость приемки ' + filename
+          });
+        } else {
+          XLSX.writeFile(wb, filename);
+        }
       } catch (err) {
-        console.error('Export error:', err);
-        alert('Ошибка при сохранении Excel: ' + err.message);
-        return;
+        if (err && err.name === 'AbortError') {
+          console.log('Share dismissed by user');
+        } else {
+          console.error('Export error:', err);
+          try {
+            XLSX.writeFile(wb, filename, { bookType: 'xlsx', compression: true });
+          } catch (fallbackErr) {
+            alert('Ошибка при сохранении Excel: ' + (fallbackErr.message || err.message));
+            return;
+          }
+        }
       }
 
       showExportToast(successMessage);
@@ -2549,11 +2571,21 @@
       const s = getReportSummaryText();
       const text = `Отчет приемки: ${s.sessionName}\nДата: ${s.dateStr}\nВсего паллет: ${s.totalPallets}\nВсего ящиков: ${s.totalBoxes}\nИТОГО: ${s.totalUnits} шт.\n(Файл XLSX сохранен на устройстве)`;
       
-      if (navigator.share) {
+      if (lastGeneratedReportFile && navigator.canShare && navigator.canShare({ files: [lastGeneratedReportFile] })) {
+        navigator.share({
+          files: [lastGeneratedReportFile],
+          title: `Отчет: ${s.sessionName}`,
+          text: text
+        }).catch(e => {
+          if (e && e.name !== 'AbortError') console.log('Share dismissed:', e);
+        });
+      } else if (navigator.share) {
         navigator.share({
           title: `Отчет: ${s.sessionName}`,
           text: text
-        }).catch(e => console.log('Share dismissed:', e));
+        }).catch(e => {
+          if (e && e.name !== 'AbortError') console.log('Share dismissed:', e);
+        });
       } else {
         const url = `https://t.me/share/url?url=${encodeURIComponent('https://t.me/KladActivation_bot')}&text=${encodeURIComponent(text)}`;
         window.open(url, '_blank');
