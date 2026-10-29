@@ -411,7 +411,8 @@
       right: 0;
       bottom: 0;
       background: rgba(0, 0, 0, 0.75);
-      display: none;
+      display: none !important;
+      pointer-events: none !important;
       align-items: center;
       justify-content: center;
       z-index: 200;
@@ -419,7 +420,8 @@
     }
 
     .modal-overlay.open {
-      display: flex;
+      display: flex !important;
+      pointer-events: auto !important;
     }
 
     .modal-card {
@@ -630,7 +632,8 @@
       bottom: 0;
       background: rgba(10, 10, 10, 0.95);
       backdrop-filter: blur(4px);
-      display: none;
+      display: none !important;
+      pointer-events: none !important;
       align-items: center;
       justify-content: center;
       z-index: 300;
@@ -639,7 +642,8 @@
     }
 
     .lock-overlay.active {
-      display: flex;
+      display: flex !important;
+      pointer-events: auto !important;
     }
 
     .lock-card {
@@ -1447,15 +1451,6 @@
       }
     }
 
-    // Header event listeners
-    const sessionNameInput = document.getElementById('sessionNameInput');
-    if (sessionNameInput) {
-      sessionNameInput.addEventListener('input', (e) => {
-        state.session.name = e.target.value;
-        saveState();
-      });
-    }
-
     function handleClearSession() {
       if (!confirm('Начать новую приемку? Все данные будут сброшены.')) {
         return;
@@ -1475,16 +1470,31 @@
     }
     window.handleClearSession = handleClearSession;
 
-    const clearSessionBtn = document.getElementById('clearSessionBtn');
-    if (clearSessionBtn) {
-      clearSessionBtn.addEventListener('click', handleClearSession);
-    }
+    // Header event listeners
+    function initHeaderListeners() {
+      try {
+        const sessionNameInput = document.getElementById('sessionNameInput');
+        if (sessionNameInput) {
+          sessionNameInput.addEventListener('input', (e) => {
+            state.session.name = e.target.value;
+            saveState();
+          });
+        }
 
-    const exportBtn = document.getElementById('exportExcelBtn');
-    if (exportBtn) {
-      exportBtn.addEventListener('click', () => {
-        generateExcelReport();
-      });
+        const clearSessionBtn = document.getElementById('clearSessionBtn');
+        if (clearSessionBtn) {
+          clearSessionBtn.addEventListener('click', handleClearSession);
+        }
+
+        const exportBtn = document.getElementById('exportExcelBtn');
+        if (exportBtn) {
+          exportBtn.addEventListener('click', () => {
+            generateExcelReport();
+          });
+        }
+      } catch (err) {
+        console.error('Error initializing header listeners:', err);
+      }
     }
 
     // UI Rendering: Products Bar
@@ -1643,32 +1653,36 @@
     }
 
     function initNamesListeners() {
-      const prodInput = document.getElementById('productNameInput');
-      if (prodInput) {
-        prodInput.addEventListener('input', (e) => {
-          const currentProd = state.products[state.activeProductIndex];
-          if (!currentProd) return;
-          currentProd.name = e.target.value;
-          saveState();
-          const activeTab = document.querySelector('#productsBar .prod-tab.active');
-          if (activeTab) {
-            activeTab.textContent = currentProd.name || `Product ${state.activeProductIndex + 1}`;
-          }
-        });
-      }
+      try {
+        const prodInput = document.getElementById('productNameInput');
+        if (prodInput) {
+          prodInput.addEventListener('input', (e) => {
+            const currentProd = state.products[state.activeProductIndex];
+            if (!currentProd) return;
+            currentProd.name = e.target.value;
+            saveState();
+            const activeTab = document.querySelector('#productsBar .prod-tab.active');
+            if (activeTab) {
+              activeTab.textContent = currentProd.name || `Product ${state.activeProductIndex + 1}`;
+            }
+          });
+        }
 
-      const varInput = document.getElementById('variantNameInput');
-      if (varInput) {
-        varInput.addEventListener('input', (e) => {
-          const currentVar = getActiveVariant();
-          if (!currentVar) return;
-          currentVar.name = e.target.value;
-          saveState();
-          const activeTab = document.querySelector('#variantsBar .variant-tab.active');
-          if (activeTab) {
-            activeTab.textContent = currentVar.name || `Variant ${state.activeVariantIndex + 1}`;
-          }
-        });
+        const varInput = document.getElementById('variantNameInput');
+        if (varInput) {
+          varInput.addEventListener('input', (e) => {
+            const currentVar = getActiveVariant();
+            if (!currentVar) return;
+            currentVar.name = e.target.value;
+            saveState();
+            const activeTab = document.querySelector('#variantsBar .variant-tab.active');
+            if (activeTab) {
+              activeTab.textContent = currentVar.name || `Variant ${state.activeVariantIndex + 1}`;
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error initializing names listeners:', err);
       }
     }
 
@@ -1804,28 +1818,35 @@
 
     // Quick Counter Button Listeners
     function initCounterButtons() {
-      const decPallet = document.getElementById('decPalletBtn');
-      const incPallet = document.getElementById('incPalletBtn');
-      const decBox = document.getElementById('decBoxBtn');
-      const incBox = document.getElementById('incBoxBtn');
-      const decUnit = document.getElementById('decUnitBtn');
-      const incUnit1 = document.getElementById('incUnit1Btn');
-      const incUnit5 = document.getElementById('incUnit5Btn');
+      try {
+        const decPallet = document.getElementById('decPalletBtn');
+        const incPallet = document.getElementById('incPalletBtn');
+        const decBox = document.getElementById('decBoxBtn');
+        const incBox = document.getElementById('incBoxBtn');
+        const decUnit = document.getElementById('decUnitBtn');
+        const incUnit1 = document.getElementById('incUnit1Btn');
+        const incUnit5 = document.getElementById('incUnit5Btn');
 
-      if (decPallet) decPallet.addEventListener('click', () => modifyCount('stdPallets', -1));
-      if (incPallet) incPallet.addEventListener('click', () => modifyCount('stdPallets', 1));
-      if (decBox) decBox.addEventListener('click', () => modifyCount('looseBoxes', -1));
-      if (incBox) incBox.addEventListener('click', () => modifyCount('looseBoxes', 1));
-      if (decUnit) decUnit.addEventListener('click', () => modifyCount('looseUnits', -1));
-      if (incUnit1) incUnit1.addEventListener('click', () => modifyCount('looseUnits', 1));
-      if (incUnit5) incUnit5.addEventListener('click', () => modifyCount('looseUnits', 5));
+        if (decPallet) decPallet.addEventListener('click', () => modifyCount('stdPallets', -1));
+        if (incPallet) incPallet.addEventListener('click', () => modifyCount('stdPallets', 1));
+        if (decBox) decBox.addEventListener('click', () => modifyCount('looseBoxes', -1));
+        if (incBox) incBox.addEventListener('click', () => modifyCount('looseBoxes', 1));
+        if (decUnit) decUnit.addEventListener('click', () => modifyCount('looseUnits', -1));
+        if (incUnit1) incUnit1.addEventListener('click', () => modifyCount('looseUnits', 1));
+        if (incUnit5) incUnit5.addEventListener('click', () => modifyCount('looseUnits', 5));
+      } catch (err) {
+        console.error('Error initializing counter buttons:', err);
+      }
     }
 
     // Custom Pallet Modal & Management
     function openCustomPalletModal() {
       const modal = document.getElementById('customPalletModal');
       const input = document.getElementById('customPalletBoxesInput');
-      if (modal) modal.classList.add('open');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+      }
       if (input) {
         input.value = '';
         setTimeout(() => input.focus(), 50);
@@ -1836,7 +1857,10 @@
       const modal = document.getElementById('customPalletModal');
       const input = document.getElementById('customPalletBoxesInput');
       if (input) input.blur();
-      if (modal) modal.classList.remove('open');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+      }
     }
 
     function submitCustomPallet() {
@@ -2017,12 +2041,16 @@
         closeBtn.style.display = 'inline-flex';
       }
 
+      modal.style.display = 'flex';
       modal.classList.add('active');
     }
 
     function closeActivationModal() {
       const modal = document.getElementById('activationModal');
-      if (modal) modal.classList.remove('active');
+      if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+      }
     }
 
     function checkTrialLimit() {
@@ -2192,6 +2220,7 @@
         console.error('Activation handler error:', err);
         alert('Ошибка при активации: ' + (err && err.message ? err.message : err));
       }
+    }
     window.handleActivation = handleActivation;
 
     // Helper functions for testing and resetting license/demo state in console
@@ -2225,68 +2254,72 @@
 
     // Modal & Activation Event Listeners
     function initActivationListeners() {
-      const badge = document.getElementById('licenseBadge');
-      if (badge) {
-        badge.addEventListener('click', () => openActivationModal(false));
-      }
+      try {
+        const badge = document.getElementById('licenseBadge');
+        if (badge) {
+          badge.addEventListener('click', () => openActivationModal(false));
+        }
 
-      const closeLockModalBtn = document.getElementById('closeLockModalBtn');
-      if (closeLockModalBtn) {
-        closeLockModalBtn.addEventListener('click', closeActivationModal);
-      }
+        const closeLockModalBtn = document.getElementById('closeLockModalBtn');
+        if (closeLockModalBtn) {
+          closeLockModalBtn.addEventListener('click', closeActivationModal);
+        }
 
-      const lockCloseBtn = document.getElementById('lockCloseBtn');
-      if (lockCloseBtn) {
-        lockCloseBtn.addEventListener('click', closeActivationModal);
-      }
+        const lockCloseBtn = document.getElementById('lockCloseBtn');
+        if (lockCloseBtn) {
+          lockCloseBtn.addEventListener('click', closeActivationModal);
+        }
 
-      const idBox = document.getElementById('activationDeviceIdBox');
-      if (idBox) {
-        idBox.addEventListener('click', () => {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(currentDeviceId).then(() => {
-              const toast = document.getElementById('copyToast');
-              if (toast) {
-                toast.style.display = 'block';
-                setTimeout(() => { toast.style.display = 'none'; }, 2000);
-              }
-            });
-          }
-        });
-      }
+        const idBox = document.getElementById('activationDeviceIdBox');
+        if (idBox) {
+          idBox.addEventListener('click', () => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(currentDeviceId).then(() => {
+                const toast = document.getElementById('copyToast');
+                if (toast) {
+                  toast.style.display = 'block';
+                  setTimeout(() => { toast.style.display = 'none'; }, 2000);
+                }
+              });
+            }
+          });
+        }
 
-      const activateBtn = document.getElementById('activateBtn') || document.getElementById('submitKeyBtn');
-      if (activateBtn) {
-        activateBtn.addEventListener('click', handleActivation);
-      }
+        const activateBtn = document.getElementById('activateBtn') || document.getElementById('submitKeyBtn');
+        if (activateBtn) {
+          activateBtn.addEventListener('click', handleActivation);
+        }
 
-      const licInput = document.getElementById('licenseKeyInput');
-      if (licInput) {
-        licInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
+        const licInput = document.getElementById('licenseKeyInput');
+        if (licInput) {
+          licInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleActivation();
+            }
+          });
+        }
+
+        const buyBtn = document.getElementById('buyLicenseBtn') || document.querySelector('.btn-buy');
+        if (buyBtn) {
+          buyBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            handleActivation();
-          }
-        });
-      }
+            const url = getTelegramBuyUrl();
+            window.open(url, '_blank');
+          });
+        }
 
-      const buyBtn = document.getElementById('buyLicenseBtn') || document.querySelector('.btn-buy');
-      if (buyBtn) {
-        buyBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const url = getTelegramBuyUrl();
-          window.open(url, '_blank');
-        });
-      }
+        const shareTgBtn = document.getElementById('shareTgBtn');
+        if (shareTgBtn) {
+          shareTgBtn.addEventListener('click', shareToTelegram);
+        }
 
-      const shareTgBtn = document.getElementById('shareTgBtn');
-      if (shareTgBtn) {
-        shareTgBtn.addEventListener('click', shareToTelegram);
-      }
-
-      const shareMaxBtn = document.getElementById('shareMaxBtn');
-      if (shareMaxBtn) {
-        shareMaxBtn.addEventListener('click', shareToMax);
+        const shareMaxBtn = document.getElementById('shareMaxBtn');
+        if (shareMaxBtn) {
+          shareMaxBtn.addEventListener('click', shareToMax);
+        }
+      } catch (err) {
+        console.error('Error initializing activation listeners:', err);
       }
     }
 
@@ -2478,12 +2511,16 @@
         } catch (e) {}
       }
 
+      modal.style.display = 'flex';
       modal.classList.add('open');
     }
 
     function closeShareReportModal() {
       const modal = document.getElementById('shareReportModal');
-      if (modal) modal.classList.remove('open');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+      }
     }
 
     function getReportSummaryText() {
@@ -2685,24 +2722,29 @@
 
     // Функция инициализации при старте страницы
     function init() {
-      loadState();
-      renderHeader();
-      renderProductsBar();
-      renderVariantsBar();
-      renderNamesInputs();
-      renderQuants();
-      renderCustomPalletsList();
-      initCounterButtons();
-      initNamesListeners();
-      initActivationListeners();
-      updateTotalDisplay();
-      checkTrialLimit();
-      switchLanguage(state.currentLang || 'en');
-      initIosInstallBanner();
+      try { loadState(); } catch (e) { console.error('init loadState error:', e); }
+      try { renderHeader(); } catch (e) { console.error('init renderHeader error:', e); }
+      try { renderProductsBar(); } catch (e) { console.error('init renderProductsBar error:', e); }
+      try { renderVariantsBar(); } catch (e) { console.error('init renderVariantsBar error:', e); }
+      try { renderNamesInputs(); } catch (e) { console.error('init renderNamesInputs error:', e); }
+      try { renderQuants(); } catch (e) { console.error('init renderQuants error:', e); }
+      try { renderCustomPalletsList(); } catch (e) { console.error('init renderCustomPalletsList error:', e); }
+      try { initHeaderListeners(); } catch (e) { console.error('init initHeaderListeners error:', e); }
+      try { initCounterButtons(); } catch (e) { console.error('init initCounterButtons error:', e); }
+      try { initNamesListeners(); } catch (e) { console.error('init initNamesListeners error:', e); }
+      try { initActivationListeners(); } catch (e) { console.error('init initActivationListeners error:', e); }
+      try { updateTotalDisplay(); } catch (e) { console.error('init updateTotalDisplay error:', e); }
+      try { checkTrialLimit(); } catch (e) { console.error('init checkTrialLimit error:', e); }
+      try { switchLanguage(state.currentLang || 'en'); } catch (e) { console.error('init switchLanguage error:', e); }
+      try { initIosInstallBanner(); } catch (e) { console.error('init initIosInstallBanner error:', e); }
     }
 
-    const currentDeviceId = initDeviceId();
-    init();
+    const currentDeviceId = (typeof initDeviceId === 'function' ? initDeviceId() : 'KLAD-DEMO-DEVICE');
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   </script>
 
   <!-- Custom Pallet Modal -->
