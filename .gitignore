@@ -19,3 +19,8 @@ android/local.properties
 # OS files
 .DS_Store
 Thumbs.db
+
+# Assistant internal logs
+*процесс*.txt
+*Процесс*.txt
+

@@ -53,9 +53,10 @@
 39. [x] Синхронизация веб-кода с Android и запуск сборки Gradle: выполнен `npm run build` и `npx cap sync android` (все ассеты скопированы в Android). В `android/build.gradle` добавлены зеркала Google Maven (Aliyun). При запуске `gradlew.bat assembleDebug` зафиксирована ошибка отсутствия локального Android SDK (`SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable or by setting the sdk.dir path in local.properties`). verify.ps1 пройден.
 40. [x] Локализация Android SDK (Шаг 4): удален старый раздельный журнал «Процесс для Гемини.txt», единым журналом назначен `process.md`. Выполнена проверка стандартных путей SDK (`$env:LOCALAPPDATA\Android\Sdk`, `C:\Android\Sdk`, `C:\Program Files (x86)\Android\android-sdk`). Результат: SDK_NOT_FOUND. Ручная загрузка тяжелых дистрибутивов отменена согласно инструкции. verify.ps1 пройден.
 41. [x] Настройка облачной сборки APK через GitHub Actions: создан файл `.github/workflows/build.yml` с триггерами на push (main, master) и workflow_dispatch, настройкой JDK 17 (Temurin), сборкой `gradlew assembleDebug --no-daemon` и выгрузкой готового артефакта `app-debug.apk`. verify.ps1 пройден.
+42. [x] Фиксация изменений и отправка кода на GitHub: создан корневой `.gitignore` (исключены node_modules, секреты bot/.env, build-кэши), создан публичный репозиторий `Sergei123321123/kladovshik` на GitHub, инициализирован git (`main`), выполнен коммит `feat: setup android capacitor and github actions build` и успешный пуш `git push -u origin main`. Автоматически запущен workflow GitHub Actions для облачной сборки APK. verify.ps1 пройден.
 
 ## Следующие шаги
-- Запуск облачной сборки в GitHub Actions / отправка изменений в удаленный репозиторий.
+- Проверка результатов облачной сборки APK в GitHub Actions и скачивание артефакта `app-debug.apk`.
 - Микро-шаг 4.3: публикация обновленного двухшагового Mini App на GitHub Pages (`git commit`, `git push`).
 - Интеграция кнопки запуска Mini App в клавиатуру Telegram-бота (`bot/bot.js`).
 - Подготовка сборки APK/AAB для Google Play.
