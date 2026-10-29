@@ -15,6 +15,7 @@ android/.idea/
 android/*.iml
 android/app/*.iml
 android/local.properties
+local.properties
 
 # OS files
 .DS_Store
