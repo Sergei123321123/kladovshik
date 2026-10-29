@@ -48,8 +48,19 @@
       justify-content: space-between;
       gap: 8px;
       padding: 12px;
+      padding-top: calc(14px + env(safe-area-inset-top, 0px));
       background: #1a1a1a;
       border-bottom: 1px solid #2d2d2d;
+    }
+
+    #sessionTitle, .session-bar {
+      margin-top: 10px;
+    }
+
+    .session-title-wrap {
+      flex: 1;
+      display: flex;
+      min-width: 0;
     }
 
     .header-input {
@@ -182,7 +193,9 @@
 
     #counterSection {
       padding: 12px;
-      margin-bottom: 125px;
+      padding-bottom: 100px;
+      margin-bottom: 0;
+      box-sizing: border-box;
     }
 
     .names-bar {
@@ -932,11 +945,13 @@
     <button type="button" id="closeIosBannerBtn" class="btn-ios-close" onclick="dismissIosInstallBanner()" title="Закрыть">✕</button>
   </div>
 
-  <header id="appHeader">
-    <input type="text" id="sessionNameInput" placeholder="Intake #1" class="header-input">
+  <header id="appHeader" class="session-bar">
+    <div id="sessionTitle" class="session-title-wrap">
+      <input type="text" id="sessionNameInput" placeholder="Intake #1" class="header-input">
+    </div>
     <span id="licenseBadge" class="badge">Demo: 0/15</span>
     <button id="clearSessionBtn" type="button" class="btn btn-clear">New / Clear</button>
-    <button id="exportExcelBtn" type="button" class="btn btn-export">Export .XLSX</button>
+    <button id="exportExcelBtn" type="button" class="btn btn-export">XLSX</button>
   </header>
   <nav id="productsBar"></nav>
   <nav id="variantsBar"></nav>
@@ -1065,7 +1080,7 @@
     // Localization Dictionary (i18n)
     const TRANSLATIONS = {
       en: {
-        exportBtn: 'Export .XLSX',
+        exportBtn: 'XLSX',
         clearBtn: 'New / Clear',
         clearConfirm: 'Start a new intake? All current products and counts will be reset.',
         sessionNamePlaceholder: 'Intake #1',
@@ -1106,7 +1121,7 @@
         exportToast: 'Excel report downloaded!'
       },
       ru: {
-        exportBtn: 'Экспорт .XLSX',
+        exportBtn: 'XLSX',
         clearBtn: 'Очистить',
         clearConfirm: 'Начать новую приемку? Все данные будут сброшены.',
         sessionNamePlaceholder: 'Приемка #1',
@@ -1929,6 +1944,21 @@
 
     function addShareBonus(messengerName) {
       try {
+        const flagKey = (messengerName === 'Telegram' || messengerName === 'tg')
+          ? 'kladovshik_bonus_tg_claimed'
+          : 'kladovshik_bonus_max_claimed';
+
+        if (localStorage.getItem(flagKey) === 'true') {
+          const alreadyMsg = 'Ссылка открыта! Бонус за этот мессенджер уже был получен ранее';
+          if (typeof showExportToast === 'function') {
+            showExportToast(alreadyMsg);
+          }
+          alert(alreadyMsg);
+          return;
+        }
+
+        localStorage.setItem(flagKey, 'true');
+
         const currentBonus = getBonusLimit();
         const newBonus = currentBonus + 2;
         localStorage.setItem(STORAGE_KEY_BONUS_LIMIT, newBonus.toString());
@@ -1964,11 +1994,11 @@
     }
 
     function shareToMax() {
-      const shareUrl = SHARE_URL;
+      const shareUrl = 'https://max.ru/';
       const shareText = SHARE_TEXT;
       if (navigator.share) {
         navigator.share({
-          title: 'Кладовщик',
+          title: 'PriemTovara',
           text: shareText,
           url: shareUrl
         }).catch((e) => console.log('Share dismissed/failed:', e));
@@ -1978,8 +2008,7 @@
             navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
           }
         } catch (e) {}
-        const maxUrl = `https://max.im/share?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
-        window.open(maxUrl, '_blank');
+        window.open(shareUrl, '_blank');
       }
       addShareBonus('MAX');
     }
