@@ -62,12 +62,13 @@
 48. [x] Проверка статуса сборки на Node.js 22: RUN_ID: 40863403106 завершился с `failure` на шаге `Build Debug APK`. Шаг синхронизации Capacitor успешно пройден. Ошибка сборки: `error: invalid source release: 21` при компиляции `:capacitor-android`. Причина: Capacitor 8 скомпилирован под Java 21, а в CI был установлен JDK 17. verify.ps1 пройден.
 49. [x] Обновление JDK до 21 в CI (Шаг 49): в `.github/workflows/build.yml` параметр `java-version` обновлен с 17 до 21 (`actions/setup-java@v4`, дистрибутив `temurin`) для совместимости с исходным кодом Capacitor 8. verify.ps1 пройден.
 50. [x] Успешная облачная компиляция APK в GitHub Actions: запуск RUN_ID: 40866875257 успешно завершен (`conclusion: success`). Скомпилирован и загружен артефакт `app-debug` (4 119 405 байт). Облачный пайплайн сборки Android APK на Capacitor 8 полностью стабилизирован. verify.ps1 пройден.
+51. [x] Выгрузка и локальная верификация APK-артефакта: создана папка `release/`, через GitHub API скачан архив `app-debug.zip` и распакован в `release/app-debug.apk` (4 482 926 байт / 4.28 МБ). Структура DEX и веб-ассеты внутри APK верифицированы. Папка `release/` исключена из git через `.gitignore`. verify.ps1 пройден.
 
 ## Следующие шаги
-- Скачивание и локальная проверка артефакта `app-debug.apk`.
 - Микро-шаг 4.3: публикация обновленного двухшагового Mini App на GitHub Pages (`git commit`, `git push`).
 - Интеграция кнопки запуска Mini App в клавиатуру Telegram-бота (`bot/bot.js`).
-- Подготовка сборки APK/AAB для Google Play.
+- Подготовка релизной сборки (Release APK / AAB) и подписи для Google Play.
+
 
 
 
