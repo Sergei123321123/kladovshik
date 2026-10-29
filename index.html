@@ -2192,8 +2192,36 @@
         console.error('Activation handler error:', err);
         alert('Ошибка при активации: ' + (err && err.message ? err.message : err));
       }
-    }
     window.handleActivation = handleActivation;
+
+    // Helper functions for testing and resetting license/demo state in console
+    function resetPro(reload = true) {
+      try {
+        localStorage.removeItem('kladovshik_pro_license');
+        localStorage.removeItem(STORAGE_KEY_LICENSE);
+        localStorage.removeItem('kladovshik_license_activated');
+        console.log('[PRO Reset] All PRO license flags removed from localStorage.');
+        if (reload) location.reload();
+      } catch (e) {
+        console.error('Failed to reset PRO:', e);
+      }
+    }
+    window.resetPro = resetPro;
+
+    function resetDemo(reload = true) {
+      try {
+        resetPro(false);
+        localStorage.removeItem(STORAGE_KEY_USAGE_COUNT);
+        localStorage.removeItem(STORAGE_KEY_BONUS_LIMIT);
+        localStorage.removeItem('kladovshik_bonus_tg_claimed');
+        localStorage.removeItem('kladovshik_bonus_max_claimed');
+        console.log('[Demo Reset] Demo intake counters and referral bonuses reset.');
+        if (reload) location.reload();
+      } catch (e) {
+        console.error('Failed to reset Demo:', e);
+      }
+    }
+    window.resetDemo = resetDemo;
 
     // Modal & Activation Event Listeners
     function initActivationListeners() {
