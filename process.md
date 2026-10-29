@@ -76,9 +76,10 @@
 62. [x] Формирование реального файла .xlsx и системный шаринг (Web Share API) в index.html: в `generateExcelReport()` добавлено создание бинарного объекта `File` из SheetJS (`XLSX.write` в массив байт -> `Blob` -> `File`). Реализован вызов нативной системной шторки через `navigator.canShare({ files: [file] })` и `navigator.share()`, с безопасным фоллбеком на `XLSX.writeFile()` при отсутствии поддержки и перехватом отмены шаринга (`AbortError`). Выполнен `npm run build` и `npx cap sync android`. verify.ps1 пройден.
 63. [x] Синхронизация веб-кода с Android-проектом и публикация на GitHub: запущены `npm run build` и `npx cap sync android`, актуализированы веб-ассеты в `www/` и `android/app/src/main/assets/public`. Успешно выполнен проверочный скрипт `verify.ps1` (код 0). Изменения зафиксированы и отправлены в `origin/main`. verify.ps1 пройден.
 64. [x] Скачивание обновленного APK с поддержкой Web Share API: завершен запуск сборки в GitHub Actions RUN_ID: 40894971463 (`status: completed`, `conclusion: success`). Скачан архив артефакта `app-debug`, распакован в `release/PriemTovara-debug.apk` (4 535 758 байт / 4.33 МБ, SHA256: `f44139bd9bd...`, дата: 29.10.2026). Приложение обновлено реальным бинарным файловым шарингом XLSX через системную шторку Android. verify.ps1 пройден.
+65. [x] Переработка модального окна #shareReportModal и прямая передача файла XLSX: полностью удалены устаревшие обработчики `mailto:` и `t.me/share/url`. В окне настроена одна главная кнопка «Отправить файл (Telegram, MAX, Почта)» (`navigator.share` с прикрепленным файлом `files: [file]`) и альтернативная кнопка «Сохранить на устройство» (`XLSX.writeFile`). Гарантировано формирование бинарного Blob/File книги перед открытием модалки и по клику. Выполнен `npm run build` и `npx cap sync android`. verify.ps1 пройден.
 
 ## Следующие шаги
-- Установка обновленного `release/PriemTovara-debug.apk` на Android и контрольная проверка системного шаринга XLSX.
+- Установка обновленного `release/PriemTovara-debug.apk` на Android и контрольная проверка отправки файла XLSX через шторку.
 - Интеграция кнопки запуска Mini App в клавиатуру Telegram-бота (`bot/bot.js`).
 - Тестирование сквозного процесса покупки через Telegram Stars в тестовом режиме.
 - Подготовка релизной сборки (Release APK / AAB) и подписи для Google Play.
