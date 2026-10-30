@@ -739,6 +739,41 @@
       border-color: #ffa726;
     }
 
+    .btn-copy-device-id {
+      width: 100%;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #262626;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: -8px;
+      margin-bottom: 12px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-copy-device-id:hover {
+      background: #333333;
+      border-color: #666;
+    }
+
+    .btn-copy-device-id:active {
+      background: #1e1e1e;
+      transform: scale(0.98);
+    }
+
+    .btn-copy-device-id.copied {
+      background: rgba(46, 125, 50, 0.25) !important;
+      border-color: #4caf50 !important;
+      color: #81c784 !important;
+    }
+
     .license-input {
       width: 100%;
       min-height: 48px;
@@ -2093,7 +2128,12 @@
 
     function getTelegramBuyUrl() {
       const devId = (state && state.deviceId) || (typeof currentDeviceId !== 'undefined' ? currentDeviceId : '') || (typeof initDeviceId === 'function' ? initDeviceId() : 'KLAD-DEMO-DEVICE');
-      return `https://t.me/${BOT_USERNAME}?startapp=${encodeURIComponent(devId)}`;
+      const isNative = Boolean(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isNative || isMobile) {
+        return `tg://resolve?domain=${BOT_USERNAME}&start=${encodeURIComponent(devId)}`;
+      }
+      return `https://t.me/${BOT_USERNAME}?start=${encodeURIComponent(devId)}`;
     }
 
     function openActivationModal(isForced = false) {
@@ -2109,11 +2149,25 @@
       if (!modal) return;
 
       if (buyBtn) {
-        buyBtn.href = getTelegramBuyUrl();
+        const url = getTelegramBuyUrl();
+        buyBtn.href = url;
+        const isNative = Boolean(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isNative || isMobile) {
+          buyBtn.removeAttribute('target');
+        } else {
+          buyBtn.target = '_blank';
+        }
       }
 
       if (idBox) {
         idBox.textContent = currentDeviceId;
+      }
+      const copyBtn = document.getElementById('copyDeviceIdModalBtn');
+      const copyBtnText = document.getElementById('copyDeviceIdModalBtnText');
+      if (copyBtn) copyBtn.classList.remove('copied');
+      if (copyBtnText) {
+        copyBtnText.textContent = (state && state.currentLang === 'en') ? 'Copy ID' : 'Скопировать ID';
       }
       if (feedback) {
         feedback.textContent = '';
@@ -2346,6 +2400,65 @@
     }
     window.resetDemo = resetDemo;
 
+    function copyDeviceIdToClipboard() {
+      const idToCopy = currentDeviceId || (state && state.deviceId) || 'KLAD-DEVICE';
+
+      const onCopied = () => {
+        const btn = document.getElementById('copyDeviceIdModalBtn');
+        const btnText = document.getElementById('copyDeviceIdModalBtnText');
+        const toast = document.getElementById('copyToast');
+        if (btn && btnText) {
+          const origText = btnText.textContent;
+          btn.classList.add('copied');
+          btnText.textContent = (state && state.currentLang === 'en') ? '✓ Copied!' : '✓ Скопировано!';
+          setTimeout(() => {
+            btn.classList.remove('copied');
+            btnText.textContent = origText;
+          }, 2000);
+        }
+        if (toast) {
+          toast.style.display = 'block';
+          toast.textContent = (state && state.currentLang === 'en') ? '✓ Copied to clipboard!' : '✓ Скопировано в буфер!';
+          setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(idToCopy).then(onCopied).catch(() => {
+          fallbackCopyText(idToCopy);
+          onCopied();
+        });
+      } else {
+        fallbackCopyText(idToCopy);
+        onCopied();
+      }
+    }
+    window.copyDeviceIdToClipboard = copyDeviceIdToClipboard;
+
+    function fallbackCopyText(text) {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        textArea.style.width = '2em';
+        textArea.style.height = '2em';
+        textArea.style.padding = '0';
+        textArea.style.border = 'none';
+        textArea.style.outline = 'none';
+        textArea.style.boxShadow = 'none';
+        textArea.style.background = 'transparent';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch (err) {
+        console.error('Fallback copy error:', err);
+      }
+    }
+
     // Modal & Activation Event Listeners
     function initActivationListeners() {
       try {
@@ -2366,17 +2479,12 @@
 
         const idBox = document.getElementById('activationDeviceIdBox');
         if (idBox) {
-          idBox.addEventListener('click', () => {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(currentDeviceId).then(() => {
-                const toast = document.getElementById('copyToast');
-                if (toast) {
-                  toast.style.display = 'block';
-                  setTimeout(() => { toast.style.display = 'none'; }, 2000);
-                }
-              });
-            }
-          });
+          idBox.addEventListener('click', copyDeviceIdToClipboard);
+        }
+
+        const copyBtn = document.getElementById('copyDeviceIdModalBtn');
+        if (copyBtn) {
+          copyBtn.addEventListener('click', copyDeviceIdToClipboard);
         }
 
         const activateBtn = document.getElementById('activateBtn') || document.getElementById('submitKeyBtn');
@@ -2397,9 +2505,23 @@
         const buyBtn = document.getElementById('buyLicenseBtn') || document.querySelector('.btn-buy');
         if (buyBtn) {
           buyBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const url = getTelegramBuyUrl();
-            window.open(url, '_blank');
+            const devId = (state && state.deviceId) || (typeof currentDeviceId !== 'undefined' ? currentDeviceId : '') || 'KLAD-DEMO-DEVICE';
+            const isNative = Boolean(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const deeplink = `tg://resolve?domain=${BOT_USERNAME}&start=${encodeURIComponent(devId)}`;
+            const fallbackUrl = `https://t.me/${BOT_USERNAME}?start=${encodeURIComponent(devId)}`;
+
+            if (isNative || isMobile) {
+              e.preventDefault();
+              try {
+                window.location.href = deeplink;
+              } catch (err) {
+                window.open(fallbackUrl, '_blank');
+              }
+            } else {
+              e.preventDefault();
+              window.open(fallbackUrl, '_blank');
+            }
           });
         }
 
@@ -3253,7 +3375,10 @@
       if (licInput) licInput.placeholder = t.licensePlaceholder;
 
       const copyToast = document.getElementById('copyToast');
-      if (copyToast) copyToast.textContent = t.copyToast;
+      if (copyToast) copyToast.textContent = (lang === 'en') ? '✓ Copied to clipboard!' : '✓ Скопировано в буфер!';
+
+      const copyDevBtnText = document.getElementById('copyDeviceIdModalBtnText');
+      if (copyDevBtnText) copyDevBtnText.textContent = (lang === 'en') ? 'Copy ID' : 'Скопировать ID';
 
       const shareTitle = document.getElementById('shareReportTitle');
       if (shareTitle) shareTitle.textContent = t.shareReportTitle || 'Отправить отчет';
@@ -3354,7 +3479,11 @@
         You have completed 15 free intakes. To unlock unlimited access, provide your Device ID to get an activation key.
       </div>
       <div id="activationDeviceIdBox" class="device-id-box" title="Tap to copy ID"></div>
-      <div id="copyToast" style="font-size: 12px; color: #81c784; margin-top: -10px; margin-bottom: 12px; display: none;">Copied to clipboard!</div>
+      <button type="button" id="copyDeviceIdModalBtn" class="btn-copy-device-id">
+        <span class="copy-icon">📋</span>
+        <span id="copyDeviceIdModalBtnText">Скопировать ID</span>
+      </button>
+      <div id="copyToast" style="font-size: 12px; color: #81c784; margin-top: -6px; margin-bottom: 12px; display: none;">✓ Скопировано в буфер!</div>
       <input type="text" id="licenseKeyInput" class="license-input" placeholder="PRO-XXXX-XXXX">
       <div id="licenseFeedback" style="font-size: 13px; margin-bottom: 10px; font-weight: 600;"></div>
       <button type="button" id="activateBtn" class="btn-activate" onclick="handleActivation()">Activate PRO</button>
