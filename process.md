@@ -103,6 +103,11 @@
     - Прямой Chat UX: настроена понятная Reply-клавиатура с кнопками «ℹ️ Где взять Device ID?» и «❓ Помощь». Команда `/start` выводит приветствие с инструкцией. При получении Device ID (в `/start <ID>` или в обычном тексте) бот отправляет карточку устройства с тарифом 1 Star и СРАЗУ выставляет нативный инвойс Telegram Stars (`sendStarsInvoice`) на 1 ⭐. В обработчике `successful_payment` реализована моментальная выдача лицензионного ключа `generateLicenseKey(deviceId, now)` в моноширинном формате для копирования в один клик.
     - Перезапуск бота: старый процесс остановлен, запущен фоновый процесс (task-560). В `bot/bot.log` подтвержден успешный старт без синтаксических ошибок и сброс кнопки меню на `default`.
     - Верификация: контрольный скрипт `powershell -File ./verify.ps1` успешно пройден (код 0).
+79. [x] Микро-шаг 2.3: Финализация клиентского приложения index.html и сборка свежего APK:
+    - Проверка и полировка `index.html`: подтверждено полное отсутствие ссылок на `kladovshik-pay` и `github.io`. Кнопка `#copyDeviceIdModalBtn` («📋 Скопировать ID») полностью функциональна и копирует Device ID с fallback на скрытый `textarea`. Кнопка покупки `#buyLicenseBtn` локализована под RU/EN («Купить PRO (Безлимит) в Telegram» / «Buy PRO (Unlimited) in Telegram») и формирует нативный диплинк `tg://resolve?domain=KladActivation_bot&start=<DEVICE_ID>` для мобильных устройств/Capacitor с fallback `https://t.me/KladActivation_bot?start=<DEVICE_ID>`.
+    - Обязательный конвейер: выполнены `npm run build && npx cap sync android` и `powershell -File ./verify.ps1` (код 0).
+    - Git Commit & Push: изменения зафиксированы в git (`feat: complete native bot link, device id copy button and sync android assets`, коммит `4a7d336`) и отправлены в `origin main`.
+    - Облачная сборка и выгрузка APK: завершен workflow GitHub Actions RUN_ID: 41046062936 (`status: completed`, `conclusion: success`). Скачан и распакован свежий артефакт `app-debug` в `release/PriemTovara-debug.apk` (4 674 344 байт / 4.46 МБ, дата: 30.10.2026 18:11 UTC, SHA256: `4971FB1A55609EB53663DF44831EB3FBE301961DE872AF44937D32A85E69226E`). Внутри APK подтверждено наличие `#copyDeviceIdModalBtn` и `tg://resolve`.
 
 ## Следующие шаги
 - Проведение и верификация сквозного тестового платежа через Telegram Stars за 1 XTR в боевом боте.
