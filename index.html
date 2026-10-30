@@ -2540,9 +2540,10 @@
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-      // Sanitized filename
-      const cleanName = (state.session.name || 'Intake').replace(/[/\\?%*:|"<>]/g, '_').trim();
-      const filename = `${cleanName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      // Sanitized filename (safe for URI and Android FileProvider)
+      let cleanName = (state.session.name || 'Intake').trim();
+      let filename = `${cleanName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      filename = filename.replace(/[#?%*:|"<>/\\]/g, '_').replace(/\s+/g, ' ');
 
       try {
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -2606,7 +2607,7 @@
           generateExcelReport();
         }
 
-        const filename = lastGeneratedFilename || 'Intake_Report.xlsx';
+        let filename = (lastGeneratedFilename || 'Intake_Report.xlsx').replace(/[#?%*:|"<>/\\]/g, '_').replace(/\s+/g, ' ');
         const wb = lastGeneratedWb;
         const file = lastGeneratedReportFile;
 
@@ -2631,7 +2632,7 @@
         if (isNative && filesystemPlugin && sharePlugin) {
           console.log('[XLSX Share] Формирование Base64 книги для нативной записи...');
           const base64Data = lastGeneratedBase64 || XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-          console.log(`[XLSX Share] Base64 сформирован (${base64Data ? base64Data.length : 0} симв). Запись в CACHE...`);
+          console.log(`[XLSX Share] Base64 сформирован (${base64Data ? base64Data.length : 0} симв). Запись в CACHE: "${filename}"...`);
 
           const writeResult = await filesystemPlugin.writeFile({
             path: filename,
@@ -2640,13 +2641,14 @@
           });
           console.log(`[XLSX Share] Нативный файл успешно сохранен в кэш: uri=${writeResult.uri}`);
 
-          console.log('[XLSX Share] Вызов системного Capacitor.Plugins.Share.share()...');
-          await sharePlugin.share({
+          const shareOptions = {
             title: filename,
-            text: 'Ведомость приемки ' + filename,
-            url: writeResult.uri,
+            text: 'Ведомость приемки: ' + filename,
+            files: [writeResult.uri],
             dialogTitle: 'Поделиться отчетом XLSX'
-          });
+          };
+          console.log(`[XLSX Share] Вызов системного Capacitor Share с files: [${writeResult.uri}], title: "${shareOptions.title}"`);
+          await sharePlugin.share(shareOptions);
           console.log('[XLSX Share] Capacitor Share успешно выполнен');
           return;
         }
@@ -2704,7 +2706,7 @@
           return;
         }
 
-        const filename = lastGeneratedFilename || 'Intake_Report.xlsx';
+        let filename = (lastGeneratedFilename || 'Intake_Report.xlsx').replace(/[#?%*:|"<>/\\]/g, '_').replace(/\s+/g, ' ');
         const wb = lastGeneratedWb;
 
         const isNative = Boolean(
@@ -2729,12 +2731,14 @@
 
           if (sharePlugin) {
             console.log('[XLSX Save] Открытие системного диалога для выбора сохранения/отправки...');
-            await sharePlugin.share({
+            const saveShareOptions = {
               title: filename,
-              text: 'Ведомость приемки ' + filename,
-              url: writeResult.uri,
+              text: 'Ведомость приемки: ' + filename,
+              files: [writeResult.uri],
               dialogTitle: state.currentLang === 'ru' ? 'Сохранить или отправить отчет' : 'Save or share report'
-            });
+            };
+            console.log(`[XLSX Save] Вызов системного Capacitor Share с files: [${writeResult.uri}], title: "${saveShareOptions.title}"`);
+            await sharePlugin.share(saveShareOptions);
           } else {
             showExportToast(state.currentLang === 'ru' ? 'Файл сохранен' : 'File saved');
           }
