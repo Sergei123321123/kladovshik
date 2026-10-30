@@ -129,13 +129,13 @@
 
 83. [x] Микро-шаг 4.3: Настройка облачного пайплайна сборки подписанного Release APK для RuStore в GitHub Actions:
     - Упаковка Keystore для CI: экспортирован ключ подписи в `android/app/keystore.b64` (Base64).
+    - Конфигурация подписи (v1 + v2): в `signingConfigs.release` включены `v1SigningEnabled true` и `v2SigningEnabled true` для полной совместимости с RuStore и утилитами валидации подписи.
     - Обновление GitHub Actions `.github/workflows/build.yml`: добавлен шаг восстановления `Restore Release Keystore` (`base64 -d`), переключена сборка на `./gradlew assembleRelease --no-daemon`, настроена выгрузка артефакта `PriemTovara-release` (`app-release.apk`).
-    - Обязательный конвейер: выполнены `npm run build && npx cap sync android` и `powershell -File ./verify.ps1` (код 0).
-    - Git Push & запуск CI: зафиксированы изменения и отправлены в ветку `main` репозитория для автоматической сборки релизного APK.
+    - Сборка и скачивание артефакта: выполнен успешный прогон workflow GitHub Actions (Run ID: 41056575390, коммит `e93ebae`). Скачан и распакован файл `release/PriemTovara-release.apk` (3 688 260 байт / 3.52 МБ, SHA256: `AB81A92D200E677916681B9F6F9FB719F15A86E29B70BD7B99AE9263435CDBE3`).
+    - Верификация подписи: проверка через `keytool -printcert -jarfile` подтвердила подпись сертификатом `CN=PriemTovara, OU=Warehouse, O=PriemTovara, L=Moscow, ST=Moscow, C=RU` (алиас `priemtovara`, срок действия: до 2054 года, SHA256 отпечаток: `3D:A2:7A:15:3F:33:36:A1:CF:61:B1:56:A4:24:49:12:26:FD:2E:C9:22:2C:39:A9:ED:3C:B4:2E:84:2F:E1:1D`).
 
 ## Следующие шаги
-- Завершение сборки и выгрузка подписанного `PriemTovara-release.apk` из GitHub Actions.
-- Проверка цифровой подписи APK через `keytool -printcert -jarfile` (алиас `priemtovara`).
+- Передача подписанного релизного APK (`release/PriemTovara-release.apk`) Продюсеру для загрузки в консоль разработчика RuStore.
 - Тестирование Продюсером выбора способов оплаты и эмуляции СБП в боте.
 - Подключение реального боевого webhook ЮKassa при вводе боевых ключей самозанятого.
 - Проведение и верификация сквозного тестового платежа через Telegram Stars за 1 XTR в боевом боте.
