@@ -1,6 +1,6 @@
 /**
  * Kladovshik Telegram Activation Bot
- * 100% Native Chat Billing (Telegram Stars)
+ * 100% Native Chat Billing (Telegram Stars & ЮKassa СБП)
  */
 
 const fs = require('fs');
@@ -56,6 +56,13 @@ if (!token || token.trim() === '' || token === 'ваш_токен_здесь' ||
   process.exit(0);
 }
 
+// Конфигурация тарифов и эквайринга
+const YOOKASSA_SHOP_ID = process.env.YOOKASSA_SHOP_ID || '';
+const YOOKASSA_SECRET_KEY = process.env.YOOKASSA_SECRET_KEY || '';
+const YOOKASSA_TEST_MODE = process.env.YOOKASSA_TEST_MODE !== 'false';
+const PRICE_RUB = parseInt(process.env.PRICE_RUB || '400', 10);
+const PRO_STARS_PRICE = 1; // 1 Star (Тестовая символическая оплата)
+
 // Инициализация Telegram бота с polling
 const bot = new TelegramBot(token, { polling: true });
 
@@ -72,11 +79,8 @@ bot.on('error', (error) => {
   logToFile('BOT_ERROR', error.message);
 });
 
-// Стоимость лицензии в Telegram Stars (XTR)
-const PRO_STARS_PRICE = 1; // 1 Star (Тестовая символическая оплата)
-
 /**
- * Сброс кнопки меню чата на стандартную (удаление рудиментов Mini App)
+ * Сброс кнопки меню чата на стандартную
  * @param {number|string|null} chatId Опциональный ID целевого чата
  */
 async function resetChatMenuButton(chatId = null) {
@@ -146,6 +150,114 @@ function parseDeviceId(text) {
 }
 
 /**
+ * Отправка карточки заказа с выбором способов оплаты (СБП / Telegram Stars)
+ * @param {number|string} chatId ID чата
+ * @param {string} deviceId Идентификатор устройства
+ */
+function sendPaymentMethodSelection(chatId, deviceId) {
+  const cleanId = parseDeviceId(deviceId) || deviceId;
+  const messageText = (
+    `📱 Устройство для активации: \`${cleanId}\`\n` +
+    `Тариф: PRO Бессрочный доступ\n\n` +
+    `Выберите удобный способ оплаты:`
+  );
+
+  const inlineKeyboard = {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: `⚡ Оплатить ${PRICE_RUB} ₽ через СБП`,
+            callback_data: `pay_sbp:${cleanId}`
+          }
+        ],
+        [
+          {
+            text: `⭐ Оплатить ${PRO_STARS_PRICE} Star (Тест)`,
+            callback_data: `pay_stars:${cleanId}`
+          }
+        ]
+      ]
+    }
+  };
+
+  logToFile('PAY_SELECT', `Отправка меню способов оплаты для ${cleanId} в чат ${chatId}`);
+
+  return bot.sendMessage(chatId, messageText, {
+    parse_mode: 'Markdown',
+    ...inlineKeyboard,
+    ...getReplyKeyboard()
+  });
+}
+
+/**
+ * Создание платежа через официальный API ЮKassa (СБП / карты РФ)
+ * @param {string} deviceId Идентификатор устройства
+ * @param {number|string} chatId ID чата в Telegram
+ * @param {number} amount Сумма в рублях
+ * @returns {Promise<{ id: string, confirmation_url: string }>}
+ */
+async function createYooKassaPayment(deviceId, chatId, amount = PRICE_RUB) {
+  const cleanId = parseDeviceId(deviceId) || deviceId;
+
+  if (YOOKASSA_TEST_MODE || !YOOKASSA_SHOP_ID || !YOOKASSA_SECRET_KEY || YOOKASSA_SHOP_ID === 'test_shop_id') {
+    const mockPaymentId = `mock_yoo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    logToFile('YOOKASSA_MOCK', `Создан mock-платеж ЮKassa ${mockPaymentId} на ${amount} ₽ для ${cleanId}`);
+    return {
+      id: mockPaymentId,
+      confirmation_url: 'https://yookassa.ru/'
+    };
+  }
+
+  const idempotenceKey = `${cleanId}-${Date.now()}`;
+  const authHeader = 'Basic ' + Buffer.from(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET_KEY}`).toString('base64');
+
+  const payload = {
+    amount: {
+      value: `${amount}.00`,
+      currency: 'RUB'
+    },
+    capture: true,
+    confirmation: {
+      type: 'redirect',
+      return_url: 'https://t.me/KladActivation_bot'
+    },
+    description: `Лицензия «Прием Товара PRO» для устройства ${cleanId}`,
+    metadata: {
+      deviceId: cleanId,
+      chatId: String(chatId)
+    }
+  };
+
+  logToFile('YOOKASSA_REQ', `Запрос к ЮKassa v3/payments для ${cleanId} на ${amount} ₽`);
+
+  const response = await fetch('https://api.yookassa.ru/v3/payments', {
+    method: 'POST',
+    headers: {
+      'Authorization': authHeader,
+      'Idempotence-Key': idempotenceKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logToFile('ERROR', `Ошибка API ЮKassa HTTP ${response.status}: ${errorText}`);
+    throw new Error(`ЮKassa HTTP ${response.status}: ${errorText}`);
+  }
+
+  const paymentData = await response.json();
+  const confirmationUrl = paymentData.confirmation && paymentData.confirmation.confirmation_url;
+  logToFile('YOOKASSA_RES', `Платеж ЮKassa создан ID: ${paymentData.id}, URL: ${confirmationUrl}`);
+
+  return {
+    id: paymentData.id,
+    confirmation_url: confirmationUrl
+  };
+}
+
+/**
  * Отправка инвойса Telegram Stars по запросу с Device ID
  * @param {number|string} chatId ID чата в Telegram
  * @param {string} deviceId Идентификатор устройства KLAD-XXXXXXXX-XXXX
@@ -180,7 +292,37 @@ function sendStarsInvoice(chatId, deviceId) {
 }
 
 /**
- * Обработка успешного платежа и выдача лицензионного ключа PRO
+ * Выдача лицензионного ключа PRO после успешной оплаты
+ * @param {number|string} chatId ID чата в Telegram
+ * @param {string} deviceId Идентификатор устройства
+ * @param {string} receiptId Идентификатор/чек платежа
+ * @param {string} paymentSource Источник оплаты ('Stars' или 'СБП')
+ */
+function issueLicenseKey(chatId, deviceId, receiptId, paymentSource = 'Stars') {
+  const cleanId = parseDeviceId(deviceId) || deviceId;
+  const now = Date.now();
+  const licenseKey = generateLicenseKey(cleanId, now);
+
+  const successMsg = (
+    `🎉 *Оплата ${paymentSource} успешно получена!*\n\n` +
+    `Ваш лицензионный ключ PRO:\n` +
+    `\`${licenseKey}\`\n\n` +
+    `_(Нажмите на ключ, чтобы скопировать)_\n\n` +
+    `📱 *Устройство:* \`${cleanId}\`\n` +
+    `🧾 *Чек транзакции:* \`${receiptId}\`\n\n` +
+    `*Инструкция:* вставьте этот ключ в приложении «Прием Товара» в поле активации и нажмите «Активировать».`
+  );
+
+  bot.sendMessage(chatId, successMsg, {
+    parse_mode: 'Markdown',
+    ...getReplyKeyboard()
+  });
+
+  logToFile('KEY_GENERATED', `Ключ ${licenseKey} выдан через ${paymentSource} для ${cleanId} в чат ${chatId}`);
+}
+
+/**
+ * Обработка успешного платежа через Telegram Stars
  * @param {Object} msg Объект входящего сообщения Telegram с successful_payment
  */
 function handleSuccessfulPayment(msg) {
@@ -191,7 +333,7 @@ function handleSuccessfulPayment(msg) {
   const payload = payment.invoice_payload || '';
   const chargeId = payment.telegram_payment_charge_id;
 
-  logToFile('PAYMENT_SUCCESS', `Чек: ${chargeId}, Сумма: ${payment.total_amount} ${payment.currency}, Payload: ${payload}`);
+  logToFile('PAYMENT_SUCCESS', `Чек Stars: ${chargeId}, Сумма: ${payment.total_amount} ${payment.currency}, Payload: ${payload}`);
 
   // Извлекаем Device ID из payload: "PRO_STARS:KLAD-XXXXXXXX-XXXX:chatId"
   const parts = payload.split(':');
@@ -199,40 +341,22 @@ function handleSuccessfulPayment(msg) {
   const deviceId = parseDeviceId(rawId) || rawId;
 
   if (deviceId) {
-    const now = Date.now();
-    const licenseKey = generateLicenseKey(deviceId, now);
-
-    const successMsg = (
-      `🎉 *Оплата успешно получена!*\n\n` +
-      `Ваш лицензионный ключ PRO:\n` +
-      `\`${licenseKey}\`\n\n` +
-      `_(Нажмите на ключ, чтобы скопировать)_\n\n` +
-      `📱 *Устройство:* \`${deviceId}\`\n` +
-      `🧾 *Чек Stars:* \`${chargeId}\`\n\n` +
-      `*Инструкция:* вставьте этот ключ в приложении «Прием Товара» в поле активации и нажмите «Активировать».`
-    );
-
-    bot.sendMessage(chatId, successMsg, {
-      parse_mode: 'Markdown',
-      ...getReplyKeyboard()
-    });
-
-    logToFile('KEY_GENERATED', `Ключ ${licenseKey} выдан для ${deviceId} в чат ${chatId}`);
+    issueLicenseKey(chatId, deviceId, chargeId, 'Telegram Stars');
   } else {
     bot.sendMessage(
       chatId,
       `✅ *Оплата Stars получена!* (Чек: \`${chargeId}\`)\n\n` +
-      `Пожалуйста, отправьте ваш *Device ID* (например, \`KLAD-XXXXXXXX-XXXX\`) для моментальной генерации ключа.`,
+      `Пожалуйста, отправьте ваш *Device ID* (например, \`KLAD-XXXXXXXX-XXXX\`) для генерации ключа.`,
       {
         parse_mode: 'Markdown',
         ...getReplyKeyboard()
       }
     );
-    logToFile('WARN', `Оплата получена, но Device ID не распознан в payload: "${payload}"`);
+    logToFile('WARN', `Оплата Stars получена, но Device ID не распознан: "${payload}"`);
   }
 }
 
-// 1. Слушатель pre_checkout_query: валидация заказа Telegram
+// 1. Слушатель pre_checkout_query: валидация заказа Telegram Stars
 bot.on('pre_checkout_query', async (query) => {
   const payload = query.invoice_payload || '';
   logToFile('PRE_CHECKOUT_QUERY', `ID: ${query.id}, От: ${query.from?.id} (@${query.from?.username || ''}), Сумма: ${query.total_amount} ${query.currency}, Payload: ${payload}`);
@@ -257,7 +381,7 @@ bot.on('pre_checkout_query', async (query) => {
   }
 });
 
-// 2. Слушатель successful_payment
+// 2. Слушатель successful_payment (Stars)
 bot.on('successful_payment', (msg) => {
   handleSuccessfulPayment(msg);
 });
@@ -272,15 +396,110 @@ bot.on('callback_query', async (query) => {
 
   if (!chatId) return;
 
-  if (data.startsWith('PAY_STARS:')) {
-    const rawId = data.replace('PAY_STARS:', '');
+  try {
+    await bot.answerCallbackQuery(query.id);
+  } catch (e) {}
+
+  // Выбор оплаты Stars
+  if (data.startsWith('pay_stars:') || data.startsWith('PAY_STARS:')) {
+    const rawId = data.replace(/^pay_stars:|^PAY_STARS:/, '');
     const deviceId = parseDeviceId(rawId) || rawId;
     try {
-      await bot.answerCallbackQuery(query.id);
       await sendStarsInvoice(chatId, deviceId);
     } catch (err) {
       logToFile('ERROR', `Ошибка при отправке инвойса из callback_query: ${err.message}`);
+      bot.sendMessage(chatId, '❌ Не удалось выставить счет Telegram Stars. Попробуйте еще раз позже.', getReplyKeyboard());
     }
+    return;
+  }
+
+  // Выбор оплаты СБП через ЮKassa
+  if (data.startsWith('pay_sbp:')) {
+    const rawId = data.replace('pay_sbp:', '');
+    const deviceId = parseDeviceId(rawId) || rawId;
+
+    if (YOOKASSA_TEST_MODE) {
+      const sbpText = (
+        `⚡ *Оплата через СБП (Тестовый режим)*\n\n` +
+        `Сумма к оплате: *${PRICE_RUB} ₽*\n` +
+        `Устройство: \`${deviceId}\`\n\n` +
+        `Для проверки нажмите «Оплатить» или эмулируйте моментальную успешную оплату:`
+      );
+
+      const sbpKeyboard = {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: `📱 Оплатить ${PRICE_RUB} ₽ (Тест СБП)`,
+                url: 'https://yookassa.ru/'
+              }
+            ],
+            [
+              {
+                text: '✅ Эмулировать успешную оплату СБП',
+                callback_data: `test_sbp_success:${deviceId}`
+              }
+            ],
+            [
+              {
+                text: '« Назад к выбору оплаты',
+                callback_data: `back_select:${deviceId}`
+              }
+            ]
+          ]
+        }
+      };
+
+      bot.sendMessage(chatId, sbpText, {
+        parse_mode: 'Markdown',
+        ...sbpKeyboard
+      });
+    } else {
+      try {
+        const payment = await createYooKassaPayment(deviceId, chatId, PRICE_RUB);
+        const sbpText = (
+          `⚡ *Оплата через СБП (ЮKassa)*\n\n` +
+          `Сумма: *${PRICE_RUB} ₽*\n` +
+          `Устройство: \`${deviceId}\`\n\n` +
+          `Нажмите кнопку ниже для перехода к оплате в приложении вашего банка через СБП:`
+        );
+
+        bot.sendMessage(chatId, sbpText, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: `⚡ Оплатить ${PRICE_RUB} ₽ по СБП`,
+                  url: payment.confirmation_url
+                }
+              ]
+            ]
+          }
+        });
+      } catch (err) {
+        logToFile('ERROR', `Ошибка создания платежа ЮKassa: ${err.message}`);
+        bot.sendMessage(chatId, '❌ Не удалось инициировать оплату СБП. Пожалуйста, выберите оплату Telegram Stars или повторите попытку позже.', getReplyKeyboard());
+      }
+    }
+    return;
+  }
+
+  // Эмуляция успешной оплаты СБП
+  if (data.startsWith('test_sbp_success:')) {
+    const rawId = data.replace('test_sbp_success:', '');
+    const deviceId = parseDeviceId(rawId) || rawId;
+    const testReceiptId = `TEST-SBP-${Date.now()}`;
+    issueLicenseKey(chatId, deviceId, testReceiptId, 'СБП (Тест)');
+    return;
+  }
+
+  // Возврат к выбору оплаты
+  if (data.startsWith('back_select:')) {
+    const rawId = data.replace('back_select:', '');
+    const deviceId = parseDeviceId(rawId) || rawId;
+    sendPaymentMethodSelection(chatId, deviceId);
   }
 });
 
@@ -296,31 +515,7 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
   resetChatMenuButton(chatId).catch(() => {});
 
   if (deviceId) {
-    await bot.sendMessage(
-      chatId,
-      `📱 Устройство: \`${deviceId}\`\nТариф: PRO Бессрочный доступ (${PRO_STARS_PRICE} Star ⭐ — тест)`,
-      {
-        parse_mode: 'Markdown',
-        ...getReplyKeyboard()
-      }
-    );
-
-    try {
-      await sendStarsInvoice(chatId, deviceId);
-    } catch (err) {
-      logToFile('ERROR', `Ошибка отправки инвойса из /start: ${err.message}`);
-      bot.sendMessage(
-        chatId,
-        '❌ Не удалось выставить счет Telegram Stars. Нажмите кнопку ниже для повтора:',
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '⭐ Оплатить 1 Star', callback_data: `PAY_STARS:${deviceId}` }]
-            ]
-          }
-        }
-      );
-    }
+    sendPaymentMethodSelection(chatId, deviceId);
     return;
   }
 
@@ -345,8 +540,8 @@ bot.onText(/\/help/, (msg) => {
     `❓ *Как активировать PRO-версию:*\n\n` +
     `1. В приложении «Прием Товара» откройте окно активации и нажмите «📋 Скопировать ID».\n` +
     `2. Отправьте скопированный Device ID в этот чат.\n` +
-    `3. Бот мгновенно выставит нативный счет на ${PRO_STARS_PRICE} ⭐ (Telegram Stars).\n` +
-    `4. Нажмите кнопку оплаты прямо в счете.\n` +
+    `3. Выберите удобный способ оплаты: *СБП (${PRICE_RUB} ₽)* или *Telegram Stars (${PRO_STARS_PRICE} ⭐)*.\n` +
+    `4. Оплатите заказ прямо в приложении банка (СБП) или в Telegram (Stars).\n` +
     `5. Сразу после оплаты бот пришлет персональный лицензионный ключ.\n` +
     `6. Вставьте ключ в приложении и нажмите «Активировать».\n\n` +
     `✨ Лицензия активируется навсегда для указанного устройства!`
@@ -367,27 +562,13 @@ bot.onText(/\/(?:stars|buy)(?:\s+(.+))?/, async (msg, match) => {
   logToFile('COMMAND_STARS', `Чат: ${chatId}, Аргумент: "${rawArg}", DeviceID: ${deviceId || 'нет'}`);
 
   if (deviceId) {
-    await bot.sendMessage(
-      chatId,
-      `📱 Устройство: \`${deviceId}\`\nТариф: PRO Бессрочный доступ (${PRO_STARS_PRICE} Star ⭐ — тест)`,
-      {
-        parse_mode: 'Markdown',
-        ...getReplyKeyboard()
-      }
-    );
-
-    try {
-      await sendStarsInvoice(chatId, deviceId);
-    } catch (err) {
-      logToFile('ERROR', `Ошибка отправки инвойса из /stars: ${err.message}`);
-      bot.sendMessage(chatId, '❌ Не удалось выставить счет Telegram Stars. Попробуйте еще раз позже.', getReplyKeyboard());
-    }
+    sendPaymentMethodSelection(chatId, deviceId);
   } else {
     bot.sendMessage(
       chatId,
-      `⭐ *Оплата лицензии через Telegram Stars (${PRO_STARS_PRICE} ⭐)*\n\n` +
-      `Отправьте ваш Device ID для мгновенного выставления счета:\n` +
-      `\`/stars KLAD-XXXXXXXX-XXXX\``,
+      `⭐ *Оплата лицензии «Прием Товара PRO»*\n\n` +
+      `Отправьте ваш Device ID для перехода к выбору оплаты:\n` +
+      `\`/buy KLAD-XXXXXXXX-XXXX\``,
       {
         parse_mode: 'Markdown',
         ...getReplyKeyboard()
@@ -430,8 +611,8 @@ bot.on('message', async (msg) => {
       `❓ *Как активировать PRO-версию:*\n\n` +
       `1. В приложении «Прием Товара» откройте окно активации и нажмите «📋 Скопировать ID».\n` +
       `2. Отправьте скопированный Device ID в этот чат.\n` +
-      `3. Бот мгновенно выставит нативный счет на ${PRO_STARS_PRICE} ⭐ (Telegram Stars).\n` +
-      `4. Нажмите кнопку оплаты прямо в счете.\n` +
+      `3. Выберите удобный способ оплаты: *СБП (${PRICE_RUB} ₽)* или *Telegram Stars (${PRO_STARS_PRICE} ⭐)*.\n` +
+      `4. Оплатите заказ прямо в приложении банка (СБП) или в Telegram (Stars).\n` +
       `5. Сразу после оплаты бот пришлет персональный лицензионный ключ.\n` +
       `6. Вставьте ключ в приложении и нажмите «Активировать».\n\n` +
       `✨ Лицензия активируется навсегда для указанного устройства!`
@@ -447,31 +628,7 @@ bot.on('message', async (msg) => {
   const deviceId = parseDeviceId(text);
 
   if (deviceId) {
-    await bot.sendMessage(
-      chatId,
-      `📱 Устройство: \`${deviceId}\`\nТариф: PRO Бессрочный доступ (${PRO_STARS_PRICE} Star ⭐ — тест)`,
-      {
-        parse_mode: 'Markdown',
-        ...getReplyKeyboard()
-      }
-    );
-
-    try {
-      await sendStarsInvoice(chatId, deviceId);
-    } catch (err) {
-      logToFile('ERROR', `Ошибка при отправке инвойса Stars на Device ID: ${err.message}`);
-      bot.sendMessage(
-        chatId,
-        '❌ Не удалось автоматически выставить счет Telegram Stars. Нажмите кнопку ниже для повтора:',
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '⭐ Оплатить 1 Star', callback_data: `PAY_STARS:${deviceId}` }]
-            ]
-          }
-        }
-      );
-    }
+    sendPaymentMethodSelection(chatId, deviceId);
   } else {
     // Нераспознанный текст
     bot.sendMessage(
@@ -490,9 +647,14 @@ bot.on('message', async (msg) => {
 module.exports = {
   bot,
   sendStarsInvoice,
+  createYooKassaPayment,
+  sendPaymentMethodSelection,
+  issueLicenseKey,
   handleSuccessfulPayment,
   parseDeviceId,
   PRO_STARS_PRICE,
+  PRICE_RUB,
+  YOOKASSA_TEST_MODE,
   MAIN_KEYBOARD,
   getReplyKeyboard,
   resetChatMenuButton,
@@ -500,4 +662,4 @@ module.exports = {
 };
 
 // Первичная запись в лог при запуске
-logToFile('STARTUP', '🤖 Telegram-бот «Кладовщик» запущен (Native Chat Billing 100%)');
+logToFile('STARTUP', `🤖 Telegram-бот «Кладовщик» запущен (Stars + ЮKassa СБП, Тест-режим: ${YOOKASSA_TEST_MODE})`);
