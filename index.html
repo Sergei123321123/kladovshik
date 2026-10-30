@@ -3380,6 +3380,9 @@
       const copyDevBtnText = document.getElementById('copyDeviceIdModalBtnText');
       if (copyDevBtnText) copyDevBtnText.textContent = (lang === 'en') ? 'Copy ID' : 'Скопировать ID';
 
+      const buyLicenseBtn = document.getElementById('buyLicenseBtn');
+      if (buyLicenseBtn) buyLicenseBtn.textContent = (lang === 'en') ? 'Buy PRO (Unlimited) in Telegram' : 'Купить PRO (Безлимит) в Telegram';
+
       const shareTitle = document.getElementById('shareReportTitle');
       if (shareTitle) shareTitle.textContent = t.shareReportTitle || 'Отправить отчет';
       const shareDesc = document.getElementById('shareReportDesc');
