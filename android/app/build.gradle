@@ -22,6 +22,8 @@ android {
             storePassword 'PriemTovara2026!'
             keyAlias 'priemtovara'
             keyPassword 'PriemTovara2026!'
+            v1SigningEnabled true
+            v2SigningEnabled true
         }
     }
     buildTypes {
