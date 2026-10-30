@@ -1,6 +1,6 @@
 /**
  * Kladovshik Telegram Activation Bot
- * Каркас бота для генерации лицензионных ключей приложения «Кладовщик»
+ * 100% Native Chat Billing (Telegram Stars)
  */
 
 const fs = require('fs');
@@ -72,60 +72,41 @@ bot.on('error', (error) => {
   logToFile('BOT_ERROR', error.message);
 });
 
-// URL Telegram Mini App
-const MINI_APP_URL = 'https://sergei123321123.github.io/kladovshik-pay/';
+// Стоимость лицензии в Telegram Stars (XTR)
+const PRO_STARS_PRICE = 1; // 1 Star (Тестовая символическая оплата)
 
 /**
- * Получение URL Mini App с опциональной передачей startapp=<DEVICE_ID>
- * @param {string|null} deviceId Идентификатор устройства
- * @returns {string} Полный URL для открытия Mini App
- */
-function getMiniAppUrl(deviceId = null) {
-  if (deviceId) {
-    const cleanId = parseDeviceId(deviceId) || deviceId;
-    return `${MINI_APP_URL}?startapp=${encodeURIComponent(cleanId)}`;
-  }
-  return MINI_APP_URL;
-}
-
-/**
- * Установка постоянной синей кнопки Menu Button слева от поля ввода в Telegram
+ * Сброс кнопки меню чата на стандартную (удаление рудиментов Mini App)
  * @param {number|string|null} chatId Опциональный ID целевого чата
  */
-async function initChatMenuButton(chatId = null) {
+async function resetChatMenuButton(chatId = null) {
   try {
     const form = {
-      menu_button: JSON.stringify({
-        type: 'web_app',
-        text: 'Оплатить PRO',
-        web_app: { url: MINI_APP_URL }
-      })
+      menu_button: JSON.stringify({ type: 'default' })
     };
     if (chatId) {
       form.chat_id = chatId;
     }
     await bot.setChatMenuButton(form);
-    logToFile('INFO', `Chat Menu Button успешно установлен (Web App)${chatId ? ` для ${chatId}` : ' (по умолчанию)'}`);
+    logToFile('INFO', `Chat Menu Button сброшен на default${chatId ? ` для ${chatId}` : ' (глобально)'}`);
   } catch (err) {
-    logToFile('WARN', `Предупреждение при установке Menu Button: ${err.message}`);
+    logToFile('WARN', `Сброс Menu Button: ${err.message}`);
   }
 }
 
-// Установка глобальной кнопки меню при запуске
-initChatMenuButton().catch(() => {});
+// Сброс кнопки меню при старте
+resetChatMenuButton().catch(() => {});
 
 /**
- * Генерация постоянной Reply-клавиатуры с нативной кнопкой вызова Web App
- * @param {string|null} deviceId Опциональный Device ID для предзаполнения
+ * Главная Reply-клавиатура прямого нативного чат-биллинга
  */
-function getReplyKeyboard(deviceId = null) {
-  const url = getMiniAppUrl(deviceId);
+function getReplyKeyboard() {
   return {
     reply_markup: {
       keyboard: [
         [
-          { text: '🚀 Оплатить PRO (Mini App)', web_app: { url } },
-          { text: '📖 Инструкция' }
+          { text: 'ℹ️ Где взять Device ID?' },
+          { text: '❓ Помощь' }
         ]
       ],
       resize_keyboard: true
@@ -133,201 +114,50 @@ function getReplyKeyboard(deviceId = null) {
   };
 }
 
-// Главная клавиатура с кнопками по умолчанию
 const MAIN_KEYBOARD = getReplyKeyboard();
 
-// Функция проверки строки на Device ID
+/**
+ * Проверка и извлечение Device ID из строки
+ * Поддерживает форматы KLAD-XXXXXXXX-XXXX, а также hex/alphanumeric строки от 8 символов
+ * @param {string} text Входящий текст
+ * @returns {string|null} Распознанный Device ID или null
+ */
 function parseDeviceId(text) {
   if (!text || typeof text !== 'string') return null;
-  const clean = text.trim().toUpperCase();
-  
-  // Регулярное выражение для поиска формата KLAD-XXXXXXXX-XXXX
-  const match = clean.match(/KLAD-[A-F0-9]{4,16}-[A-F0-9]{2,8}/i);
-  if (match) {
-    return match[0].toUpperCase();
+  const clean = text.trim();
+
+  // 1. Поиск явного префикса KLAD-
+  const matchKlad = clean.match(/KLAD-[A-Z0-9_-]{4,32}/i);
+  if (matchKlad) {
+    return matchKlad[0].toUpperCase();
   }
-  
-  // Допускаем также ввод без префикса KLAD-, если переданы 2 hex-блока
-  const matchSimple = clean.match(/\b([A-F0-9]{6,16}-[A-F0-9]{2,8})\b/i);
-  if (matchSimple) {
-    return `KLAD-${matchSimple[1].toUpperCase()}`;
+
+  // 2. Поиск по общей сигнатуре [A-Z0-9_-]{8,}
+  const matchGeneral = clean.match(/\b([A-Z0-9_-]{8,32})\b/i);
+  if (matchGeneral) {
+    const candidate = matchGeneral[1].toUpperCase();
+    const reserved = ['START', 'HELP', 'STARS', 'BUY', 'DEVICE', 'LICENSE', 'INFO', 'CANCEL', 'PRO'];
+    if (!reserved.includes(candidate)) {
+      return candidate.startsWith('KLAD-') ? candidate : `KLAD-${candidate}`;
+    }
   }
 
   return null;
 }
 
-// Приветственное сообщение
-function getWelcomeMessage(firstName = 'Пользователь', deviceId = null) {
-  let msg = (
-    `👋 Здравствуйте, ${firstName}!\n\n` +
-    `Я официальный бот активации мобильного приложения *«PriemTovara / Кладовщик»* (Warehouse Intake Counter).\n\n` +
-    `Здесь вы можете получить персональный ключ для активации вечной лицензии *PRO Unlimited*:\n` +
-    `• Через *Telegram Mini App* (СБП, банковские карты РФ, Stars);\n` +
-    `• Прямой оплатой *Telegram Stars* (${PRO_STARS_PRICE} ⭐).\n\n`
-  );
-
-  if (deviceId) {
-    msg += (
-      `📱 *Распознан Device ID:* \`${deviceId}\`\n\n` +
-      `Нажмите кнопку ниже для перехода к оплате или оплатите счет Stars прямо в чате:`
-    );
-  } else {
-    msg += `Нажмите *«🚀 Оплатить PRO (Mini App)»* внизу или отправьте ваш Device ID:`;
-  }
-
-  return msg;
-}
-
-// Текст инструкции
-function getInstructionMessage() {
-  return (
-    `📖 *Инструкция по покупке и активации PRO-версии:*\n\n` +
-    `1. Откройте приложение *«PriemTovara / Кладовщик»* на смартфоне или в браузере.\n` +
-    `2. Нажмите на бейдж лицензии в верхней панели (*Demo: 0/15*).\n` +
-    `3. В открывшемся окне нажмите на блок с вашим *Device ID*, чтобы скопировать его.\n` +
-    `4. Нажмите *«🚀 Оплатить PRO (Mini App)»* (или синюю кнопку меню слева от поля ввода сообщения).\n` +
-    `5. Выберите удобный способ (СБП / Карта РФ / Telegram Stars).\n` +
-    `6. При оплате Stars (${PRO_STARS_PRICE} ⭐) бот выставит счет прямо в чате и моментально сгенерирует ключ PRO.\n` +
-    `7. Вставьте ключ в поле ввода в приложении и нажмите *«Активировать»*.\n\n` +
-    `✨ Лицензия активируется навсегда для вашего устройства!`
-  );
-}
-
-// Текст запроса Device ID
-function getPromptDeviceMessage() {
-  return (
-    `📱 *Отправьте ваш Device ID из приложения*\n\n` +
-    `Он выглядит следующим образом:\n` +
-    `\`KLAD-XXXXXXXX-XXXX\`\n\n` +
-    `_Либо нажмите «🚀 Оплатить PRO (Mini App)», чтобы открыть интерфейс оплаты с автоподстановкой ключа._`
-  );
-}
-
-// Обработка команды /start
-bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const name = msg.from ? (msg.from.first_name || 'Пользователь') : 'Пользователь';
-  const rawParam = match && match[1] ? match[1].trim() : '';
-  const deviceId = parseDeviceId(rawParam);
-
-  logToFile('COMMAND_START', `Чат: ${chatId}, Имя: "${name}", Параметр: "${rawParam}", DeviceID: ${deviceId || 'нет'}`);
-
-  // Обновляем Menu Button для пользователя
-  initChatMenuButton(chatId).catch(() => {});
-
-  if (deviceId) {
-    const inlineKeyboard = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '⭐ Оплатить 1 Star',
-              callback_data: `PAY_STARS:${deviceId}`
-            }
-          ],
-          [
-            {
-              text: '🚀 Оплатить PRO (Mini App)',
-              web_app: { url: getMiniAppUrl(deviceId) }
-            }
-          ]
-        ]
-      }
-    };
-
-    try {
-      await bot.sendMessage(chatId, getWelcomeMessage(name, deviceId), {
-        parse_mode: 'Markdown',
-        ...inlineKeyboard,
-        ...getReplyKeyboard(deviceId)
-      });
-    } catch (err) {
-      logToFile('ERROR', `Ошибка отправки приветствия: ${err.message}`);
-    }
-
-    try {
-      await sendStarsInvoice(chatId, deviceId);
-    } catch (err) {
-      logToFile('ERROR', `Ошибка при отправке инвойса Stars из /start: ${err.message}`);
-      bot.sendMessage(
-        chatId,
-        '❌ Не удалось автоматически выставить счет Stars. Нажмите кнопку ниже для повторной попытки:',
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '⭐ Оплатить 1 Star', callback_data: `PAY_STARS:${deviceId}` }]
-            ]
-          }
-        }
-      );
-    }
-    return;
-  }
-
-  const inlineKeyboard = {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: '🚀 Оплатить PRO (Mini App)',
-            web_app: { url: getMiniAppUrl() }
-          }
-        ]
-      ]
-    }
-  };
-
-  bot.sendMessage(chatId, getWelcomeMessage(name, null), {
-    parse_mode: 'Markdown',
-    ...inlineKeyboard,
-    ...getReplyKeyboard()
-  });
-});
-
-// Обработка команды /help
-bot.onText(/\/help/, (msg) => {
-  const chatId = msg.chat.id;
-  logToFile('COMMAND_HELP', `Чат: ${chatId}`);
-
-  const inlineKeyboard = {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: '🚀 Оплатить PRO (Mini App)',
-            web_app: { url: getMiniAppUrl() }
-          }
-        ]
-      ]
-    }
-  };
-
-  bot.sendMessage(chatId, getInstructionMessage(), {
-    parse_mode: 'Markdown',
-    ...inlineKeyboard,
-    ...getReplyKeyboard()
-  });
-});
-
-// ============================================================
-// ОПЛАТА ТАРИФА PRO ЧЕРЕЗ TELEGRAM STARS (XTR)
-// ============================================================
-
-const PRO_STARS_PRICE = 1; // 1 Star (Тестовая символическая оплата)
-
 /**
- * Отправка инвойса Telegram Stars по запросу пользователя с Device ID
+ * Отправка инвойса Telegram Stars по запросу с Device ID
  * @param {number|string} chatId ID чата в Telegram
  * @param {string} deviceId Идентификатор устройства KLAD-XXXXXXXX-XXXX
  */
 function sendStarsInvoice(chatId, deviceId) {
   const cleanId = parseDeviceId(deviceId) || deviceId;
   const title = 'Лицензия PRO Навсегда';
-  const description = `Бессрочный доступ к «Кладовщик PRO» для устройства ${cleanId}`;
+  const description = `Бессрочный доступ к «Прием Товара PRO» для устройства ${cleanId}`;
   const payload = `PRO_STARS:${cleanId}:${chatId}`;
   const providerToken = ''; // Для Telegram Stars строго пустая строка!
   const currency = 'XTR';
-  const prices = [{ label: 'Кладовщик PRO (Бессрочно)', amount: PRO_STARS_PRICE }];
+  const prices = [{ label: 'Прием Товара PRO (Бессрочно)', amount: PRO_STARS_PRICE }];
 
   logToFile('SEND_INVOICE', `Выставление счета Stars на ${PRO_STARS_PRICE} XTR для ${cleanId} в чат ${chatId}`);
 
@@ -340,6 +170,7 @@ function sendStarsInvoice(chatId, deviceId) {
     currency,
     prices,
     {
+      start_parameter: cleanId,
       need_name: false,
       need_phone_number: false,
       need_email: false,
@@ -370,30 +201,28 @@ function handleSuccessfulPayment(msg) {
   if (deviceId) {
     const now = Date.now();
     const licenseKey = generateLicenseKey(deviceId, now);
-    const expiryDate = formatDate(now + 72 * 3600 * 1000);
 
     const successMsg = (
-      `⭐ *Оплата Stars получена успешно!*\n\n` +
-      `Чек транзакции: \`${chargeId}\`\n\n` +
-      `🎉 *Ваш ключ лицензии PRO готов:*\n` +
+      `🎉 *Оплата успешно получена!*\n\n` +
+      `Ваш лицензионный ключ PRO:\n` +
       `\`${licenseKey}\`\n\n` +
-      `📱 *Привязка к устройству:* \`${deviceId}\`\n` +
-      `⏳ *Срок действия:* 3 дня на активацию (до ${expiryDate}).\n\n` +
-      `Скопируйте ключ и вставьте в окне активации приложения!\n` +
-      `После активации бессрочный доступ закрепляется за вашим устройством.`
+      `_(Нажмите на ключ, чтобы скопировать)_\n\n` +
+      `📱 *Устройство:* \`${deviceId}\`\n` +
+      `🧾 *Чек Stars:* \`${chargeId}\`\n\n` +
+      `*Инструкция:* вставьте этот ключ в приложении «Прием Товара» в поле активации и нажмите «Активировать».`
     );
 
     bot.sendMessage(chatId, successMsg, {
       parse_mode: 'Markdown',
-      ...getReplyKeyboard(deviceId)
+      ...getReplyKeyboard()
     });
 
-    logToFile('KEY_GENERATED', `Ключ ${licenseKey} отправлен в чат ${chatId} для устройства ${deviceId}`);
+    logToFile('KEY_GENERATED', `Ключ ${licenseKey} выдан для ${deviceId} в чат ${chatId}`);
   } else {
     bot.sendMessage(
       chatId,
       `✅ *Оплата Stars получена!* (Чек: \`${chargeId}\`)\n\n` +
-      `Пожалуйста, отправьте ваш *Device ID* (формат: \`KLAD-XXXXXXXX-XXXX\`) для генерации персонального ключа.`,
+      `Пожалуйста, отправьте ваш *Device ID* (например, \`KLAD-XXXXXXXX-XXXX\`) для моментальной генерации ключа.`,
       {
         parse_mode: 'Markdown',
         ...getReplyKeyboard()
@@ -403,7 +232,7 @@ function handleSuccessfulPayment(msg) {
   }
 }
 
-// 1. Слушатель pre_checkout_query: подтверждение возможности оплаты
+// 1. Слушатель pre_checkout_query: валидация заказа Telegram
 bot.on('pre_checkout_query', async (query) => {
   const payload = query.invoice_payload || '';
   logToFile('PRE_CHECKOUT_QUERY', `ID: ${query.id}, От: ${query.from?.id} (@${query.from?.username || ''}), Сумма: ${query.total_amount} ${query.currency}, Payload: ${payload}`);
@@ -413,13 +242,13 @@ bot.on('pre_checkout_query', async (query) => {
       await bot.answerPreCheckoutQuery(query.id, true);
       logToFile('INFO', `pre_checkout_query ${query.id} успешно подтвержден`);
     } else {
-      logToFile('WARN', `pre_checkout_query ${query.id} отклонен: несовпадение суммы или payload`);
+      logToFile('WARN', `pre_checkout_query ${query.id} отклонен`);
       await bot.answerPreCheckoutQuery(query.id, false, {
         error_message: 'Недействительный заказ или изменилась сумма счета.'
       });
     }
   } catch (err) {
-    logToFile('ERROR', `Ошибка в обработчике pre_checkout_query: ${err.message}`);
+    logToFile('ERROR', `Ошибка в pre_checkout_query: ${err.message}`);
     try {
       await bot.answerPreCheckoutQuery(query.id, false, {
         error_message: 'Произошла ошибка при обработке платежа. Попробуйте еще раз.'
@@ -452,18 +281,84 @@ bot.on('callback_query', async (query) => {
     } catch (err) {
       logToFile('ERROR', `Ошибка при отправке инвойса из callback_query: ${err.message}`);
     }
-  } else if (data === 'PROMPT_STARS') {
-    try {
-      await bot.answerCallbackQuery(query.id);
-    } catch (e) {}
-    bot.sendMessage(chatId, getPromptDeviceMessage(), {
-      parse_mode: 'Markdown',
-      ...getReplyKeyboard()
-    });
   }
 });
 
-// Команда /stars или /buy для выставления счета
+// 4. Команда /start
+bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const name = msg.from ? (msg.from.first_name || 'Пользователь') : 'Пользователь';
+  const rawParam = match && match[1] ? match[1].trim() : '';
+  const deviceId = parseDeviceId(rawParam);
+
+  logToFile('COMMAND_START', `Чат: ${chatId}, Имя: "${name}", Параметр: "${rawParam}", DeviceID: ${deviceId || 'нет'}`);
+
+  resetChatMenuButton(chatId).catch(() => {});
+
+  if (deviceId) {
+    await bot.sendMessage(
+      chatId,
+      `📱 Устройство: \`${deviceId}\`\nТариф: PRO Бессрочный доступ (${PRO_STARS_PRICE} Star ⭐ — тест)`,
+      {
+        parse_mode: 'Markdown',
+        ...getReplyKeyboard()
+      }
+    );
+
+    try {
+      await sendStarsInvoice(chatId, deviceId);
+    } catch (err) {
+      logToFile('ERROR', `Ошибка отправки инвойса из /start: ${err.message}`);
+      bot.sendMessage(
+        chatId,
+        '❌ Не удалось выставить счет Telegram Stars. Нажмите кнопку ниже для повтора:',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '⭐ Оплатить 1 Star', callback_data: `PAY_STARS:${deviceId}` }]
+            ]
+          }
+        }
+      );
+    }
+    return;
+  }
+
+  const welcomeText = (
+    `👋 Добро пожаловать в бот активации приложения «Прием Товара»!\n` +
+    `Здесь вы можете приобрести бессрочную PRO-лицензию для своего устройства или для устройства сотрудника.\n\n` +
+    `Чтобы купить лицензию, просто отправьте мне Device ID (например, \`KLAD-XXXXXXXX-XXXX\`).`
+  );
+
+  bot.sendMessage(chatId, welcomeText, {
+    parse_mode: 'Markdown',
+    ...getReplyKeyboard()
+  });
+});
+
+// 5. Команда /help
+bot.onText(/\/help/, (msg) => {
+  const chatId = msg.chat.id;
+  logToFile('COMMAND_HELP', `Чат: ${chatId}`);
+
+  const helpText = (
+    `❓ *Как активировать PRO-версию:*\n\n` +
+    `1. В приложении «Прием Товара» откройте окно активации и нажмите «📋 Скопировать ID».\n` +
+    `2. Отправьте скопированный Device ID в этот чат.\n` +
+    `3. Бот мгновенно выставит нативный счет на ${PRO_STARS_PRICE} ⭐ (Telegram Stars).\n` +
+    `4. Нажмите кнопку оплаты прямо в счете.\n` +
+    `5. Сразу после оплаты бот пришлет персональный лицензионный ключ.\n` +
+    `6. Вставьте ключ в приложении и нажмите «Активировать».\n\n` +
+    `✨ Лицензия активируется навсегда для указанного устройства!`
+  );
+
+  bot.sendMessage(chatId, helpText, {
+    parse_mode: 'Markdown',
+    ...getReplyKeyboard()
+  });
+});
+
+// 6. Команда /stars или /buy
 bot.onText(/\/(?:stars|buy)(?:\s+(.+))?/, async (msg, match) => {
   const chatId = msg.chat.id;
   const rawArg = match && match[1] ? match[1].trim() : '';
@@ -472,77 +367,42 @@ bot.onText(/\/(?:stars|buy)(?:\s+(.+))?/, async (msg, match) => {
   logToFile('COMMAND_STARS', `Чат: ${chatId}, Аргумент: "${rawArg}", DeviceID: ${deviceId || 'нет'}`);
 
   if (deviceId) {
-    const inlineKeyboard = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '⭐ Оплатить 1 Star',
-              callback_data: `PAY_STARS:${deviceId}`
-            }
-          ],
-          [
-            {
-              text: '🚀 Оплатить PRO (Mini App)',
-              web_app: { url: getMiniAppUrl(deviceId) }
-            }
-          ]
-        ]
+    await bot.sendMessage(
+      chatId,
+      `📱 Устройство: \`${deviceId}\`\nТариф: PRO Бессрочный доступ (${PRO_STARS_PRICE} Star ⭐ — тест)`,
+      {
+        parse_mode: 'Markdown',
+        ...getReplyKeyboard()
       }
-    };
+    );
+
     try {
       await sendStarsInvoice(chatId, deviceId);
-      bot.sendMessage(chatId, `⭐ Счет Stars для \`${deviceId}\` выставлен выше. Нажмите кнопку в инвойсе или «⭐ Оплатить 1 Star»:`, {
-        parse_mode: 'Markdown',
-        ...inlineKeyboard,
-        ...getReplyKeyboard(deviceId)
-      });
     } catch (err) {
-      logToFile('ERROR', `Ошибка при отправке инвойса Stars: ${err.message}`);
-      bot.sendMessage(chatId, '❌ Не удалось выставить счет Telegram Stars. Нажмите кнопку ниже для повтора:', {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '⭐ Оплатить 1 Star', callback_data: `PAY_STARS:${deviceId}` }]
-          ]
-        }
-      });
+      logToFile('ERROR', `Ошибка отправки инвойса из /stars: ${err.message}`);
+      bot.sendMessage(chatId, '❌ Не удалось выставить счет Telegram Stars. Попробуйте еще раз позже.', getReplyKeyboard());
     }
   } else {
-    const inlineKeyboard = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '🚀 Оплатить PRO (Mini App)',
-              web_app: { url: getMiniAppUrl() }
-            }
-          ]
-        ]
-      }
-    };
     bot.sendMessage(
       chatId,
       `⭐ *Оплата лицензии через Telegram Stars (${PRO_STARS_PRICE} ⭐)*\n\n` +
-      `Укажите ваш Device ID после команды для выставления счета:\n` +
-      `\`/stars KLAD-XXXXXXXX-XXXX\`\n\n` +
-      `_Либо нажмите кнопку ниже для открытия Mini App:_`,
+      `Отправьте ваш Device ID для мгновенного выставления счета:\n` +
+      `\`/stars KLAD-XXXXXXXX-XXXX\``,
       {
         parse_mode: 'Markdown',
-        ...inlineKeyboard,
         ...getReplyKeyboard()
       }
     );
   }
 });
 
-// Обработка текстовых сообщений
+// 7. Обработка входящих текстовых сообщений
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const fromUser = msg.from ? `${msg.from.first_name || ''} (@${msg.from.username || 'no_user'}, id:${msg.from.id})` : 'Unknown';
 
   logToFile('MESSAGE', `От: ${fromUser}, Чат: ${chatId}, Текст: "${msg.text || ''}"`, {
-    successful_payment: !!msg.successful_payment,
-    web_app_data: !!msg.web_app_data
+    successful_payment: !!msg.successful_payment
   });
 
   // Проверка успешной оплаты в потоке сообщений
@@ -551,73 +411,33 @@ bot.on('message', async (msg) => {
     return;
   }
 
-  // Обработка данных от WebApp
-  if (msg.web_app_data && msg.web_app_data.data) {
-    const rawData = msg.web_app_data.data;
-    logToFile('WEB_APP_DATA', `Получен web_app_data от ${fromUser}: "${rawData}"`);
-    try {
-      const parsed = JSON.parse(rawData);
-      const devId = parseDeviceId(parsed.deviceId || parsed.id || rawData);
-      if (devId) {
-        logToFile('INFO', `Из WebApp извлечен Device ID: ${devId}. Отправка инвойса Stars...`);
-        await sendStarsInvoice(chatId, devId);
-        return;
-      }
-    } catch (e) {
-      const devId = parseDeviceId(rawData);
-      if (devId) {
-        logToFile('INFO', `Из WebApp (plain) извлечен Device ID: ${devId}. Отправка инвойса Stars...`);
-        await sendStarsInvoice(chatId, devId);
-        return;
-      }
-    }
-  }
-
   if (!msg.text) return;
   const text = msg.text.trim();
 
   // Игнорируем команды со слешем, они обрабатываются onText
   if (text.startsWith('/')) return;
 
-  // Нажатие кнопки "📖 Инструкция"
-  if (text.includes('Инструкция')) {
-    const inlineKeyboard = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '🚀 Оплатить PRO (Mini App)',
-              web_app: { url: getMiniAppUrl() }
-            }
-          ]
-        ]
-      }
-    };
-    bot.sendMessage(chatId, getInstructionMessage(), {
-      parse_mode: 'Markdown',
-      ...inlineKeyboard,
-      ...getReplyKeyboard()
-    });
+  // Кнопка "ℹ️ Где взять Device ID?"
+  if (text.includes('Где взять Device ID')) {
+    const infoText = 'В приложении «Прием Товара» откройте окно «Купить / Активировать» и нажмите кнопку «📋 Скопировать ID». Затем просто вставьте скопированный текст сюда в чат.';
+    bot.sendMessage(chatId, infoText, getReplyKeyboard());
     return;
   }
 
-  // Нажатие кнопки "Активировать" / "Оплатить" (если пришел текст)
-  if (text.includes('Активировать') || text.includes('Оплатить')) {
-    const inlineKeyboard = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '🚀 Оплатить PRO (Mini App)',
-              web_app: { url: getMiniAppUrl() }
-            }
-          ]
-        ]
-      }
-    };
-    bot.sendMessage(chatId, getPromptDeviceMessage(), {
+  // Кнопка "❓ Помощь"
+  if (text.includes('Помощь')) {
+    const helpText = (
+      `❓ *Как активировать PRO-версию:*\n\n` +
+      `1. В приложении «Прием Товара» откройте окно активации и нажмите «📋 Скопировать ID».\n` +
+      `2. Отправьте скопированный Device ID в этот чат.\n` +
+      `3. Бот мгновенно выставит нативный счет на ${PRO_STARS_PRICE} ⭐ (Telegram Stars).\n` +
+      `4. Нажмите кнопку оплаты прямо в счете.\n` +
+      `5. Сразу после оплаты бот пришлет персональный лицензионный ключ.\n` +
+      `6. Вставьте ключ в приложении и нажмите «Активировать».\n\n` +
+      `✨ Лицензия активируется навсегда для указанного устройства!`
+    );
+    bot.sendMessage(chatId, helpText, {
       parse_mode: 'Markdown',
-      ...inlineKeyboard,
       ...getReplyKeyboard()
     });
     return;
@@ -627,39 +447,14 @@ bot.on('message', async (msg) => {
   const deviceId = parseDeviceId(text);
 
   if (deviceId) {
-    const inlineKeyboard = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '⭐ Оплатить 1 Star',
-              callback_data: `PAY_STARS:${deviceId}`
-            }
-          ],
-          [
-            {
-              text: '🚀 Оплатить PRO (Mini App)',
-              web_app: { url: getMiniAppUrl(deviceId) }
-            }
-          ]
-        ]
+    await bot.sendMessage(
+      chatId,
+      `📱 Устройство: \`${deviceId}\`\nТариф: PRO Бессрочный доступ (${PRO_STARS_PRICE} Star ⭐ — тест)`,
+      {
+        parse_mode: 'Markdown',
+        ...getReplyKeyboard()
       }
-    };
-
-    try {
-      await bot.sendMessage(
-        chatId,
-        `📱 *Device ID принят:* \`${deviceId}\`\n\n` +
-        `Счет на оплату 1 ⭐ выставлен ниже. Нажмите «Оплатить» в счете или кнопку «⭐ Оплатить 1 Star»:`,
-        {
-          parse_mode: 'Markdown',
-          ...inlineKeyboard,
-          ...getReplyKeyboard(deviceId)
-        }
-      );
-    } catch (err) {
-      logToFile('ERROR', `Ошибка отправки сообщения Device ID: ${err.message}`);
-    }
+    );
 
     try {
       await sendStarsInvoice(chatId, deviceId);
@@ -667,7 +462,7 @@ bot.on('message', async (msg) => {
       logToFile('ERROR', `Ошибка при отправке инвойса Stars на Device ID: ${err.message}`);
       bot.sendMessage(
         chatId,
-        '❌ Не удалось автоматически выставить счет Telegram Stars. Нажмите кнопку ниже для повторной попытки:',
+        '❌ Не удалось автоматически выставить счет Telegram Stars. Нажмите кнопку ниже для повтора:',
         {
           reply_markup: {
             inline_keyboard: [
@@ -678,33 +473,20 @@ bot.on('message', async (msg) => {
       );
     }
   } else {
-    // Пользователь прислал непонятный текст
-    const inlineKeyboard = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '🚀 Оплатить PRO (Mini App)',
-              web_app: { url: getMiniAppUrl() }
-            }
-          ]
-        ]
-      }
-    };
+    // Нераспознанный текст
     bot.sendMessage(
       chatId,
       `❓ Не удалось распознать Device ID.\n\n` +
-      `Пожалуйста, скопируйте его из приложения (формат: \`KLAD-XXXXXXXX-XXXX\`) или откройте Mini App:`,
+      `Чтобы купить лицензию, отправьте ваш идентификатор устройства (например, \`KLAD-XXXXXXXX-XXXX\`) или нажмите кнопку «ℹ️ Где взять Device ID?».`,
       {
         parse_mode: 'Markdown',
-        ...inlineKeyboard,
         ...getReplyKeyboard()
       }
     );
   }
 });
 
-// Экспорт для тестирования и внешнего вызова
+// Экспорт для тестирования
 module.exports = {
   bot,
   sendStarsInvoice,
@@ -712,13 +494,10 @@ module.exports = {
   parseDeviceId,
   PRO_STARS_PRICE,
   MAIN_KEYBOARD,
-  MINI_APP_URL,
-  getMiniAppUrl,
-  initChatMenuButton,
   getReplyKeyboard,
+  resetChatMenuButton,
   logToFile
 };
 
 // Первичная запись в лог при запуске
-logToFile('STARTUP', '🤖 Telegram-бот «Кладовщик» запущен и ожидает событий...');
-
+logToFile('STARTUP', '🤖 Telegram-бот «Кладовщик» запущен (Native Chat Billing 100%)');
