@@ -552,6 +552,30 @@
       gap: 12px;
     }
 
+    .btn-share-html {
+      width: 100%;
+      min-height: 52px;
+      background: #0288d1;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 16px;
+      box-shadow: 0 4px 12px rgba(2, 136, 209, 0.35);
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-share-html:active {
+      background: #01579b;
+      transform: scale(0.98);
+    }
+
     .btn-share-main {
       width: 100%;
       min-height: 52px;
@@ -1293,11 +1317,11 @@
         licenseExpired: 'Key expired (3 days limit)',
         proUnlimitedBadge: 'PRO Unlimited',
         demoBadge: (count, limit) => `Demo: ${count}/${limit || 15}`,
-        exportToast: 'Excel report ready!',
         shareReportTitle: 'Share Report',
-        shareReportDesc: 'Excel XLSX report is ready. Choose action:',
-        shareReportFileBtn: 'Send File (Telegram, MAX, Email)',
-        saveReportLocalBtn: 'Save to Device'
+        shareReportDesc: 'Reports are ready. Choose format:',
+        shareReportHtmlBtn: '📄 Send HTML (for mobile)',
+        shareReportFileBtn: '📊 Send XLSX (for PC)',
+        saveReportLocalBtn: 'Save XLSX to Device'
       },
       ru: {
         exportBtn: 'XLSX',
@@ -1340,9 +1364,10 @@
         demoBadge: (count, limit) => `Демо: ${count}/${limit || 15}`,
         exportToast: 'Отчет Excel готов!',
         shareReportTitle: 'Отправить отчет',
-        shareReportDesc: 'Файл отчета XLSX готов к передаче. Выберите действие:',
-        shareReportFileBtn: 'Отправить файл (Telegram, MAX, Почта)',
-        saveReportLocalBtn: 'Сохранить на устройство'
+        shareReportDesc: 'Отчеты готовы к передаче. Выберите формат:',
+        shareReportHtmlBtn: '📄 Отправить HTML (для телефона)',
+        shareReportFileBtn: '📊 Отправить XLSX (для ПК)',
+        saveReportLocalBtn: 'Сохранить XLSX на устройство'
       }
     };
 
@@ -2760,6 +2785,341 @@
       }
     }
 
+    /* === [HTML REPORT GENERATOR & SHARE START] === */
+    function generateHtmlReport() {
+      let currentLang = 'en';
+      try {
+        if (state && state.currentLang) {
+          currentLang = state.currentLang;
+        } else {
+          currentLang = localStorage.getItem(STORAGE_KEY_LANG) || 'en';
+        }
+      } catch (e) {
+        currentLang = 'en';
+      }
+
+      const isRu = (currentLang === 'ru');
+      const sessionTitle = (state.session && state.session.name ? state.session.name : (isRu ? 'Приемка' : 'Intake')).trim();
+      const dateStr = new Date().toLocaleString(isRu ? 'ru-RU' : 'en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const colTitle = isRu ? 'Товар / Сорт' : 'Item / Variant';
+      const colPallets = isRu ? 'Паллеты' : 'Pallets';
+      const colBoxesPerPallet = isRu ? 'Ящ / Палл' : 'Boxes/Pallet';
+      const colLooseBoxes = isRu ? '+ Ящики' : '+ Boxes';
+      const colTotalBoxes = isRu ? 'Всего ящиков' : 'Total Boxes';
+      const colUnitsPerBox = isRu ? 'Шт / Ящ' : 'Units/Box';
+      const colLooseUnits = isRu ? '+ Штуки' : '+ Units';
+      const colTotalUnits = isRu ? 'ИТОГО ШТУК' : 'TOTAL UNITS';
+      const grandTotalText = isRu ? 'ИТОГО ПО ПРИЕМКЕ' : 'GRAND TOTAL';
+
+      let grandPallets = 0;
+      let grandLooseBoxes = 0;
+      let grandTotalBoxes = 0;
+      let grandLooseUnits = 0;
+      let grandTotalUnits = 0;
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      let tableRowsHtml = '';
+
+      if (Array.isArray(state.products)) {
+        state.products.forEach((prod) => {
+          if (Array.isArray(prod.variants)) {
+            prod.variants.forEach((v) => {
+              const res = calculateVariantTotals(v, prod);
+
+              const prodName = (prod.name || (isRu ? 'Товар' : 'Product')).trim();
+              const varName = (v.name || '').trim();
+              let itemVariantStr = prodName;
+              if (varName && varName.toLowerCase() !== prodName.toLowerCase()) {
+                itemVariantStr = `${prodName} / ${varName}`;
+              }
+
+              const stdPallets = parseInt(v.stdPallets, 10) || 0;
+              const customCount = Array.isArray(v.customPallets) ? v.customPallets.length : 0;
+              const totalPallets = stdPallets + customCount;
+
+              const boxesPerPallet = parseInt(prod.boxesPerPallet, 10) || 15;
+              const looseBoxes = parseInt(v.looseBoxes, 10) || 0;
+              const totalBoxes = res.totalBoxes;
+              const unitsPerBox = parseInt(prod.unitsPerBox, 10) || 20;
+              const looseUnits = parseInt(v.looseUnits, 10) || 0;
+              const totalUnits = res.totalUnits;
+
+              grandPallets += totalPallets;
+              grandLooseBoxes += looseBoxes;
+              grandTotalBoxes += totalBoxes;
+              grandLooseUnits += looseUnits;
+              grandTotalUnits += totalUnits;
+
+              tableRowsHtml += `
+                <tr>
+                  <td><strong>${escapeHtml(itemVariantStr)}</strong></td>
+                  <td class="num">${totalPallets}</td>
+                  <td class="num">${boxesPerPallet}</td>
+                  <td class="num">${looseBoxes}</td>
+                  <td class="num"><strong>${totalBoxes}</strong></td>
+                  <td class="num">${unitsPerBox}</td>
+                  <td class="num">${looseUnits}</td>
+                  <td class="num"><span class="badge" style="background:#2e7d32;color:#ffffff;font-size:12px;padding:3px 7px;">${totalUnits}</span></td>
+                </tr>`;
+            });
+          }
+        });
+      }
+
+      const summaryPalletsLbl = isRu ? 'Всего паллет' : 'Total Pallets';
+      const summaryBoxesLbl = isRu ? 'Всего ящиков' : 'Total Boxes';
+      const summaryUnitsLbl = isRu ? 'Итого штук' : 'Total Units';
+      const deviceIdStr = (typeof currentDeviceId !== 'undefined') ? currentDeviceId : 'Mobile Intake';
+
+      return `<!DOCTYPE html>
+<html lang="${isRu ? 'ru' : 'en'}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
+  <title>${escapeHtml(sessionTitle)} - ${isRu ? 'Ведомость приемки' : 'Intake Report'}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 12px;
+      background: #121212;
+      color: #e0e0e0;
+      line-height: 1.4;
+    }
+    .card {
+      background: #1e1e1e;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .header-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #4caf50;
+      margin: 0 0 4px 0;
+    }
+    .meta-info {
+      font-size: 12px;
+      color: #9e9e9e;
+      margin-bottom: 12px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .summary-box {
+      background: #262626;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      border: 1px solid #333;
+    }
+    .summary-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: #81c784;
+    }
+    .summary-lbl {
+      font-size: 11px;
+      color: #9e9e9e;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 6px;
+      border: 1px solid #333;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 580px;
+      text-align: left;
+      font-size: 13px;
+    }
+    th {
+      background: #263238;
+      color: #eceff1;
+      padding: 10px 8px;
+      position: sticky;
+      top: 0;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    td {
+      padding: 9px 8px;
+      border-bottom: 1px solid #2d2d2d;
+      white-space: nowrap;
+    }
+    tr:nth-child(even) td {
+      background: #181818;
+    }
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .total-row td {
+      background: #1b2e1b !important;
+      font-weight: 700;
+      color: #81c784;
+      border-top: 2px solid #4caf50;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #37474f;
+      color: #cfd8dc;
+    }
+    .footer-note {
+      text-align: center;
+      font-size: 11px;
+      color: #757575;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header-title">${escapeHtml(sessionTitle)}</div>
+    <div class="meta-info">📅 ${dateStr} &bull; 📱 ${escapeHtml(deviceIdStr)}</div>
+    <div class="summary-grid">
+      <div class="summary-box">
+        <div class="summary-val">${grandPallets}</div>
+        <div class="summary-lbl">${summaryPalletsLbl}</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-val">${grandTotalBoxes}</div>
+        <div class="summary-lbl">${summaryBoxesLbl}</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-val" style="color:#66bb6a;">${grandTotalUnits}</div>
+        <div class="summary-lbl">${summaryUnitsLbl}</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>${colTitle}</th>
+            <th class="num">${colPallets}</th>
+            <th class="num">${colBoxesPerPallet}</th>
+            <th class="num">${colLooseBoxes}</th>
+            <th class="num">${colTotalBoxes}</th>
+            <th class="num">${colUnitsPerBox}</th>
+            <th class="num">${colLooseUnits}</th>
+            <th class="num">${colTotalUnits}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRowsHtml}
+          <tr class="total-row">
+            <td>${grandTotalText}</td>
+            <td class="num">${grandPallets}</td>
+            <td class="num">-</td>
+            <td class="num">${grandLooseBoxes}</td>
+            <td class="num">${grandTotalBoxes}</td>
+            <td class="num">-</td>
+            <td class="num">${grandLooseUnits}</td>
+            <td class="num" style="font-size:15px;color:#a5d6a7;">${grandTotalUnits}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer-note">PriemTovara &bull; Mobile Intake Report</div>
+  </div>
+</body>
+</html>`;
+    }
+
+    async function shareReportHtml() {
+      try {
+        console.log('[HTML Share] Запуск формирования HTML-отчета...');
+        const htmlContent = generateHtmlReport();
+        let cleanName = (state.session && state.session.name ? state.session.name : 'Intake').trim();
+        let filename = `${cleanName}_${new Date().toISOString().slice(0, 10)}.html`;
+        filename = filename.replace(/[#?%*:|"<>/\\]/g, '_').replace(/\s+/g, ' ');
+
+        const isNative = Boolean(
+          window.Capacitor && (
+            (typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ||
+            (typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web')
+          )
+        );
+        const filesystemPlugin = window.Capacitor?.Plugins?.Filesystem;
+        const sharePlugin = window.Capacitor?.Plugins?.Share;
+
+        console.log(`[HTML Share] Среда: isNative=${isNative}, Filesystem=${Boolean(filesystemPlugin)}, Share=${Boolean(sharePlugin)}`);
+
+        if (isNative && filesystemPlugin && sharePlugin) {
+          console.log(`[HTML Share] Запись в CACHE: "${filename}" (длина: ${htmlContent.length} симв)...`);
+          const writeResult = await filesystemPlugin.writeFile({
+            path: filename,
+            data: htmlContent,
+            directory: 'CACHE',
+            encoding: 'utf8'
+          });
+          console.log(`[HTML Share] Нативный файл сохранен: uri=${writeResult.uri}`);
+
+          const shareOptions = {
+            title: filename,
+            text: (state.currentLang === 'ru' ? 'Ведомость приемки: ' : 'Intake Summary: ') + filename,
+            files: [writeResult.uri],
+            dialogTitle: state.currentLang === 'ru' ? 'Поделиться HTML-ведомостью' : 'Share HTML Report'
+          };
+          console.log(`[HTML Share] Вызов системного Capacitor Share с files: [${writeResult.uri}], title: "${shareOptions.title}"`);
+          await sharePlugin.share(shareOptions);
+          console.log('[HTML Share] Capacitor Share успешно выполнен');
+          return;
+        }
+
+        // Браузерный режим (Десктоп / PWA): скачивание через Blob
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('[HTML Share] Браузерное скачивание Blob выполнено');
+        showExportToast(state.currentLang === 'ru' ? 'HTML-отчет сохранен' : 'HTML report saved');
+      } catch (err) {
+        if (err && (err.name === 'AbortError' || String(err).includes('AbortError') || String(err).includes('canceled') || String(err).includes('cancelled'))) {
+          console.log('[HTML Share] Пользователь отменил отправку');
+          return;
+        }
+        const errDetails = err ? (err.stack || `${err.name}: ${err.message}` || String(err)) : 'Unknown HTML error';
+        console.error('[HTML Share] Ошибка при отправке HTML: ' + errDetails);
+        alert('Ошибка при отправке HTML: ' + (err ? err.message : ''));
+      }
+    }
+    window.generateHtmlReport = generateHtmlReport;
+    window.shareReportHtml = shareReportHtml;
+    /* === [HTML REPORT GENERATOR & SHARE END] === */
+
     /* === [AUTONOMOUS DIAGNOSTIC COPY LOGS FUNCTION START] === */
     function copyAppLogs() {
       const logs = (window.__appLogs && window.__appLogs.length > 0)
@@ -2898,11 +3258,13 @@
       const shareTitle = document.getElementById('shareReportTitle');
       if (shareTitle) shareTitle.textContent = t.shareReportTitle || 'Отправить отчет';
       const shareDesc = document.getElementById('shareReportDesc');
-      if (shareDesc) shareDesc.textContent = t.shareReportDesc || 'Файл отчета XLSX готов к передаче. Выберите действие:';
+      if (shareDesc) shareDesc.textContent = t.shareReportDesc || 'Отчеты готовы к передаче. Выберите формат:';
+      const shareHtmlBtnText = document.getElementById('shareReportHtmlBtnText');
+      if (shareHtmlBtnText) shareHtmlBtnText.textContent = t.shareReportHtmlBtn || '📄 Отправить HTML (для телефона)';
       const shareBtnText = document.getElementById('shareReportFileBtnText');
-      if (shareBtnText) shareBtnText.textContent = t.shareReportFileBtn || 'Отправить файл (Telegram, MAX, Почта)';
+      if (shareBtnText) shareBtnText.textContent = t.shareReportFileBtn || '📊 Отправить XLSX (для ПК)';
       const saveBtnText = document.getElementById('saveReportLocalBtnText');
-      if (saveBtnText) saveBtnText.textContent = t.saveReportLocalBtn || 'Сохранить на устройство';
+      if (saveBtnText) saveBtnText.textContent = t.saveReportLocalBtn || 'Сохранить XLSX на устройство';
 
       // 3) Re-render dynamic elements & tabs
       renderHeader();
@@ -3030,9 +3392,22 @@
         <button type="button" class="btn-modal-close" onclick="closeShareReportModal()" title="Закрыть">✕</button>
       </div>
       <div id="shareReportDesc" class="share-report-desc">
-        Файл отчета XLSX готов к передаче. Выберите действие:
+        Отчеты готовы к передаче. Выберите формат:
       </div>
       <div class="share-actions-stack">
+        <!-- Кнопка 1: Отправить HTML (для телефона) -->
+        <button type="button" id="shareReportHtmlBtn" class="btn-share-html" onclick="shareReportHtml()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span id="shareReportHtmlBtnText">📄 Отправить HTML (для телефона)</span>
+        </button>
+
+        <!-- Кнопка 2: Отправить XLSX (для ПК) -->
         <button type="button" id="shareReportFileBtn" class="btn-share-main" onclick="shareReportFile()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
             <circle cx="18" cy="5" r="3"></circle>
@@ -3041,16 +3416,19 @@
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
           </svg>
-          <span id="shareReportFileBtnText">Отправить файл (Telegram, MAX, Почта)</span>
+          <span id="shareReportFileBtnText">📊 Отправить XLSX (для ПК)</span>
         </button>
+
+        <!-- Кнопка 3: Сохранить на устройство -->
         <button type="button" id="saveReportLocalBtn" class="btn-save-fallback" onclick="saveReportFileLocally()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
             <polyline points="17 21 17 13 7 13 7 21"></polyline>
             <polyline points="7 3 7 8 15 8"></polyline>
           </svg>
-          <span id="saveReportLocalBtnText">Сохранить на устройство</span>
+          <span id="saveReportLocalBtnText">Сохранить XLSX на устройство</span>
         </button>
+
         <!-- [AUTONOMOUS DIAGNOSTIC COPY LOGS BUTTON] -->
         <button type="button" id="copyLogsBtn" class="btn-copy-logs" onclick="copyAppLogs()">📋 Скопировать логи</button>
       </div>
