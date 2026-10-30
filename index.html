@@ -2412,6 +2412,7 @@
     let lastGeneratedWb = null;
     let lastGeneratedFilename = null;
     let lastGeneratedReportFile = null;
+    let lastGeneratedBase64 = null;
     function generateExcelReport() {
       if (isExporting) return;
       if (typeof XLSX === 'undefined') {
@@ -2545,13 +2546,15 @@
 
       try {
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const base64Data = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
         const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
         lastGeneratedWb = wb;
         lastGeneratedFilename = filename;
         lastGeneratedReportFile = file;
-        console.log(`[XLSX] Успешная сборка книги: "${filename}". Размер Blob: ${blob.size} байт, Размер File: ${file.size} байт`);
+        lastGeneratedBase64 = base64Data;
+        console.log(`[XLSX] Успешная сборка книги: "${filename}". Размер Blob: ${blob.size} байт, Base64 длина: ${base64Data ? base64Data.length : 0}`);
       } catch (err) {
         const errDetails = err ? (err.stack || `${err.name}: ${err.message}` || String(err)) : 'Unknown error';
         console.error('[XLSX] Ошибка при формировании файла: ' + errDetails);
@@ -2598,28 +2601,65 @@
 
     async function shareReportFile() {
       try {
-        if (!lastGeneratedReportFile || !lastGeneratedFilename) {
-          console.log('[XLSX Share] Файл не найден, запуск generateExcelReport()...');
+        if (!lastGeneratedWb || !lastGeneratedFilename) {
+          console.log('[XLSX Share] Книга не найдена в памяти, запуск generateExcelReport()...');
           generateExcelReport();
         }
 
-        const file = lastGeneratedReportFile;
         const filename = lastGeneratedFilename || 'Intake_Report.xlsx';
+        const wb = lastGeneratedWb;
+        const file = lastGeneratedReportFile;
 
-        if (!file) {
-          console.error('[XLSX Share] Ошибка: объект file отсутствует');
+        if (!wb) {
+          console.error('[XLSX Share] Ошибка: объект книги wb отсутствует');
           alert('Не удалось сформировать файл отчета');
           return;
         }
 
-        let canShareFiles = false;
-        try {
-          canShareFiles = Boolean(navigator.canShare && navigator.canShare({ files: [file] }));
-        } catch (csErr) {
-          console.warn('[XLSX Share] Ошибка проверки navigator.canShare: ' + (csErr ? (csErr.message || csErr) : csErr));
+        const isNative = Boolean(
+          window.Capacitor && (
+            (typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ||
+            (typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web')
+          )
+        );
+        const filesystemPlugin = window.Capacitor?.Plugins?.Filesystem;
+        const sharePlugin = window.Capacitor?.Plugins?.Share;
+
+        console.log(`[XLSX Share] Проверка среды: isNative=${isNative}, Filesystem=${Boolean(filesystemPlugin)}, Share=${Boolean(sharePlugin)}`);
+
+        // Нативный путь через Capacitor Plugins (Android / iOS)
+        if (isNative && filesystemPlugin && sharePlugin) {
+          console.log('[XLSX Share] Формирование Base64 книги для нативной записи...');
+          const base64Data = lastGeneratedBase64 || XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+          console.log(`[XLSX Share] Base64 сформирован (${base64Data ? base64Data.length : 0} симв). Запись в CACHE...`);
+
+          const writeResult = await filesystemPlugin.writeFile({
+            path: filename,
+            data: base64Data,
+            directory: 'CACHE'
+          });
+          console.log(`[XLSX Share] Нативный файл успешно сохранен в кэш: uri=${writeResult.uri}`);
+
+          console.log('[XLSX Share] Вызов системного Capacitor.Plugins.Share.share()...');
+          await sharePlugin.share({
+            title: filename,
+            text: 'Ведомость приемки ' + filename,
+            url: writeResult.uri,
+            dialogTitle: 'Поделиться отчетом XLSX'
+          });
+          console.log('[XLSX Share] Capacitor Share успешно выполнен');
+          return;
         }
 
-        console.log(`[XLSX Share] Проверка перед отправкой: navigator.canShare({ files: [file] }) = ${canShareFiles}; размер файла = ${file.size} байт; navigator.share = ${Boolean(navigator.share)}`);
+        // Браузерный путь (Десктоп / PWA): Web Share API с файлом
+        let canShareFiles = false;
+        try {
+          canShareFiles = Boolean(file && navigator.canShare && navigator.canShare({ files: [file] }));
+        } catch (csErr) {
+          console.warn('[XLSX Share] Ошибка navigator.canShare: ' + (csErr ? (csErr.message || csErr) : csErr));
+        }
+
+        console.log(`[XLSX Share] Браузерная проверка: canShareFiles=${canShareFiles}, navigator.share=${Boolean(navigator.share)}`);
 
         if (canShareFiles) {
           console.log('[XLSX Share] Старт navigator.share({ files: [file] })...');
@@ -2638,32 +2678,78 @@
           console.log('[XLSX Share] navigator.share (текст) успешно завершен');
         } else {
           console.log('[XLSX Share] navigator.share отсутствует, переходим к saveReportFileLocally()');
-          saveReportFileLocally();
+          await saveReportFileLocally();
         }
       } catch (err) {
-        if (err && err.name === 'AbortError') {
-          console.log('[XLSX Share] Пользователь отменил диалог отправки (AbortError)');
+        if (err && (err.name === 'AbortError' || String(err).includes('AbortError') || String(err).includes('canceled') || String(err).includes('cancelled'))) {
+          console.log('[XLSX Share] Пользователь закрыл системный диалог шаринга');
         } else {
           const errDetails = err ? (err.stack || `${err.name}: ${err.message}` || String(err)) : 'Unknown share error';
-          console.error('[XLSX Share] Точный текст ошибки navigator.share: ' + errDetails);
+          console.error('[XLSX Share] Точный текст ошибки при отправке: ' + errDetails);
           saveReportFileLocally();
         }
       }
     }
 
-    function saveReportFileLocally() {
+    async function saveReportFileLocally() {
       try {
         console.log('[XLSX Save] Старт локального сохранения файла...');
         if (!lastGeneratedWb) {
           generateExcelReport();
         }
 
-        if (lastGeneratedWb && lastGeneratedFilename) {
-          XLSX.writeFile(lastGeneratedWb, lastGeneratedFilename, { bookType: 'xlsx', compression: true });
-          console.log(`[XLSX Save] XLSX.writeFile успешно выполнен для "${lastGeneratedFilename}"`);
-          showExportToast(state.currentLang === 'ru' ? 'Файл сохранен на устройство' : 'File saved to device');
+        if (!lastGeneratedWb) {
+          console.error('[XLSX Save] Ошибка: объект книги wb отсутствует');
+          alert('Не удалось сформировать файл отчета');
+          return;
         }
+
+        const filename = lastGeneratedFilename || 'Intake_Report.xlsx';
+        const wb = lastGeneratedWb;
+
+        const isNative = Boolean(
+          window.Capacitor && (
+            (typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ||
+            (typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web')
+          )
+        );
+        const filesystemPlugin = window.Capacitor?.Plugins?.Filesystem;
+        const sharePlugin = window.Capacitor?.Plugins?.Share;
+
+        // В нативном приложении Android сохраняем через Filesystem и открываем системный выбор сохранения/передачи
+        if (isNative && filesystemPlugin) {
+          console.log('[XLSX Save] Нативный режим: запись через Filesystem в CACHE...');
+          const base64Data = lastGeneratedBase64 || XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+          const writeResult = await filesystemPlugin.writeFile({
+            path: filename,
+            data: base64Data,
+            directory: 'CACHE'
+          });
+          console.log(`[XLSX Save] Файл сохранен в кэш: uri=${writeResult.uri}`);
+
+          if (sharePlugin) {
+            console.log('[XLSX Save] Открытие системного диалога для выбора сохранения/отправки...');
+            await sharePlugin.share({
+              title: filename,
+              text: 'Ведомость приемки ' + filename,
+              url: writeResult.uri,
+              dialogTitle: state.currentLang === 'ru' ? 'Сохранить или отправить отчет' : 'Save or share report'
+            });
+          } else {
+            showExportToast(state.currentLang === 'ru' ? 'Файл сохранен' : 'File saved');
+          }
+          return;
+        }
+
+        // Десктопный браузерный фоллбек
+        XLSX.writeFile(wb, filename, { bookType: 'xlsx', compression: true });
+        console.log(`[XLSX Save] Браузерный XLSX.writeFile успешно выполнен для "${filename}"`);
+        showExportToast(state.currentLang === 'ru' ? 'Файл сохранен на устройство' : 'File saved to device');
       } catch (err) {
+        if (err && (err.name === 'AbortError' || String(err).includes('AbortError') || String(err).includes('canceled') || String(err).includes('cancelled'))) {
+          console.log('[XLSX Save] Пользователь закрыл диалог сохранения');
+          return;
+        }
         const errDetails = err ? (err.stack || `${err.name}: ${err.message}` || String(err)) : 'Unknown save error';
         console.error('[XLSX Save] Точный текст ошибки при сохранении: ' + errDetails);
         alert('Ошибка при сохранении Excel: ' + err.message);
