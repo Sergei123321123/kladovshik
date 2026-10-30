@@ -115,11 +115,30 @@
     - Логика СБП и тестовой эмуляции: реализован модуль `createYooKassaPayment(deviceId, chatId, amount)` для создания платежей через ЮKassa API v3 (с базовой HTTP Basic аутентификацией). В тестовом режиме (`YOOKASSA_TEST_MODE=true`) бот отправляет карточку оплаты СБП с кнопками тестовой ссылки и «✅ Эмулировать успешную оплату СБП» (`test_sbp_success:<DEVICE_ID>`). При эмуляции бот генерирует лицензионный ключ (`generateLicenseKey`) и присылает чек с моноширинным ключом для копирования в один клик.
     - Перезапуск бота и верификация: синтаксис проверен (`node --check bot/bot.js`), фоновый процесс перезапущен (task-685). В `bot/bot.log` зафиксирован запуск: `🤖 Telegram-бот «Кладовщик» запущен (Stars + ЮKassa СБП, Тест-режим: true)`. Скрипт `powershell -File ./verify.ps1` успешно подтвердил целостность всех файлов.
 
+81. [x] Микро-шаг 4.1: Генерация Release Keystore и настройка подписи в Gradle:
+    - Release Keystore: сгенерировано защищенное хранилище ключей `android/app/priemtovara-release.jks` через `keytool` (RSA 2048 бит, срок действия 10000 дней / до 2054 года, алиас: `priemtovara`).
+    - Безопасность: в корневой `.gitignore` добавлены маски `*.jks` и `*.keystore` для исключения утечки закрытых ключей в публичный Git-репозиторий.
+    - Конфигурация сборки `android/app/build.gradle`: настроен блок `signingConfigs.release` с привязкой файла `priemtovara-release.jks` и алиаса `priemtovara`. В `buildTypes.release` прописан `signingConfig signingConfigs.release`.
+    - Верификация: конфигурация Gradle проверена (`./gradlew help` — `BUILD SUCCESSFUL`), контрольный скрипт `powershell -File ./verify.ps1` успешно пройден (код 0).
+
+82. [x] Микро-шаг 4.2: Приведение версионирования и AndroidManifest.xml к стандартам RuStore:
+    - Версионирование в `android/app/build.gradle`: зафиксированы `versionCode 1`, `versionName "1.0.0"` и `applicationId "com.kladovshik.app"`.
+    - AndroidManifest.xml: проверены и подтверждены системный label `@string/app_name`, иконки `@mipmap/ic_launcher` и `@mipmap/ic_launcher_round`, разрешение `INTERNET`, а также `android:exported="true"` у `MainActivity` для совместимости с Android 12+.
+    - Локализация названия: в `capacitor.config.json` и `android/app/src/main/res/values/strings.xml` установлено русскоязычное название приложения `Прием Товара`.
+    - Синхронизация и верификация: выполнены `npm run build && npx cap sync android` и `powershell -File ./verify.ps1` (код 0).
+
+83. [x] Микро-шаг 4.3: Настройка облачного пайплайна сборки подписанного Release APK для RuStore в GitHub Actions:
+    - Упаковка Keystore для CI: экспортирован ключ подписи в `android/app/keystore.b64` (Base64).
+    - Обновление GitHub Actions `.github/workflows/build.yml`: добавлен шаг восстановления `Restore Release Keystore` (`base64 -d`), переключена сборка на `./gradlew assembleRelease --no-daemon`, настроена выгрузка артефакта `PriemTovara-release` (`app-release.apk`).
+    - Обязательный конвейер: выполнены `npm run build && npx cap sync android` и `powershell -File ./verify.ps1` (код 0).
+    - Git Push & запуск CI: зафиксированы изменения и отправлены в ветку `main` репозитория для автоматической сборки релизного APK.
+
 ## Следующие шаги
+- Завершение сборки и выгрузка подписанного `PriemTovara-release.apk` из GitHub Actions.
+- Проверка цифровой подписи APK через `keytool -printcert -jarfile` (алиас `priemtovara`).
 - Тестирование Продюсером выбора способов оплаты и эмуляции СБП в боте.
 - Подключение реального боевого webhook ЮKassa при вводе боевых ключей самозанятого.
 - Проведение и верификация сквозного тестового платежа через Telegram Stars за 1 XTR в боевом боте.
-- Сборка релизного APK под RuStore (настройка ключа подписи keystore, релизный билд).
 - Сквозное комплексное тестирование всех сценариев приложения.
 
 

@@ -27,16 +27,22 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Restore Release Keystore
+        run: |
+          echo "${{ hashFiles('android/app/keystore.b64') }}"
+          base64 -d android/app/keystore.b64 > android/app/priemtovara-release.jks
+
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
-      - name: Build Debug APK
+      - name: Build Release APK
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK Artifact
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: PriemTovara-release
+          path: android/app/build/outputs/apk/release/app-release.apk

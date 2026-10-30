@@ -5,6 +5,8 @@ bot/node_modules/
 # Secrets and environment
 .env
 bot/.env
+*.jks
+*.keystore
 
 # Temporary and build artifacts
 www/
